@@ -3,4 +3,8 @@ In fact, even after the episode ends we don't really know if we did well or not.
 
 How is such an algorithm called? Is there more than one?
 
-Places to look - Sutton & Barto, 
+Places to look - Sutton & Barto, that Michael Kearns article.
+
+Prob - I don't understand how the Kearns algo works at all, and I'm nost sure it fits our requirements.
+
+Forget it. Use Keras-rl and the OpenAI's gym to build the env and continue from there.

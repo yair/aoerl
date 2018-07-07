@@ -1,0 +1,6 @@
+https://arxiv.org/pdf/1603.01121.pdf
+
+A very interesting framework. Might be adaptable to our case. Are there free implementations online?
+Yes, for example NSFP agent in https://github.com/ppaanngggg/DeepRL .
+Basically, I think it's DDQN with an experience repository, or something.
+
