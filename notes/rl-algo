@@ -1,0 +1,6 @@
+We want to learn offline, i.e. run a full episode and at the end try to evaluate how well we did and only then give feedback and update the network.
+In fact, even after the episode ends we don't really know if we did well or not. It's only in comparison to other runs that we can tell if we could've done better, but in any case, rewards shouldn't be handed out while the episode is still running.
+
+How is such an algorithm called? Is there more than one?
+
+Places to look - Sutton & Barto, 

@@ -1,0 +1,7 @@
+https://www.seas.upenn.edu/~mkearns/papers/KearnsNevmyvakaHFTRiskBooks.pdf
+
+This is a chapter (of a book?), reviewing some past work.
+They cover --
+- Optimized Trade Execution via Reinforcement Learning, for which we have notes
+- Predicting Price Movement from Order Book State - unpublished work, since it is barely worth it past trading costs (but might be worth it in combination of other things, like optimizing further the bullet point above).
+- The dark pool stuff, for which we don't care.

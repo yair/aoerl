@@ -1,0 +1,6 @@
+Since we're dealing with smaller volumes, we need to decide wether action space is really made of price points or strategies (highest bid, midway, etc.).
+
+Future:
+- Combine aoerl and PGP to jointly test them to determine optimal trading period lengths.
+- Investigate benefits of having two limit orders simultaneously.
+- Once we combine market state variables into aoerl, we can train it to estimate cost in advance, and put that in the consumption tensor of PGP.
