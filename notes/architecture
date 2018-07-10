@@ -1,0 +1,16 @@
+Everything will be written in python. Bleh, I know.
+
+The data will be stored in pandas structures, the rl environment will be the OpenAI gym, and the agent will be based on keras-rl.
+
+Data structure --
+The basic building block is the fragment, which is used to describe the evolution of a single coin's orderbook over a continuous time interval.
+The fragments are collected together, ordered by time in an array and together form the single coin market emulator. The more fragments you have, the more statistiaclly independent episodes can be generated.
+
+Fragment --
+Initialized from a single data/epoch/MAR_KET file.
+The first line is the order book. Subsequent lines in the file serve as updates to it, so that the ob and orders are continouously tracked.
+Fuck.
+This can't possibly work with our current files. Most updates are of orderBookModify type, in which an order with a specific seq number is moved from one place (and volume) to another, but the orderbook doesn't contain seq numbers, so we can add orders to it, but not remove.
+Are there other API calls we can use to init the fragment, or can't this thing ever work?
+Just a sec. We do have a seq number for the ob, just not for each entry in it. This is supposed to stay consistent.
+Let's assume it's fine and try to build it. If there are real problems, well run into them.
