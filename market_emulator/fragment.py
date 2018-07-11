@@ -6,28 +6,33 @@ import json
 import logging
 from sortedcontainers import SortedDict, SortedList
 from enum import Enum
+import pickle
+import os
 
-class UpType (Enum):
-    MODIFY = 0
-    REMOVE = 1
-    NEW_TRADE = 2
+#class UpType (Enum):
+MODIFY = 0
+REMOVE = 1
+NEW_TRADE = 2
 
-class OrType (Enum):
-    ASK = 0
-    BID = 1
-    BUY = 2
-    SELL = 3
+#class OrType (Enum):
+ASK = 0
+BID = 1
+BUY = 2
+SELL = 3
 
 class FragmentGenerator:
-    def __init__ (self, market, fragdir):
+    def __init__ (self, market, basefragdir):
         self.market = market
-        self.fragdir = fragdir
+        self.fragdir = fragdir + market + "/"
         self.frags = []
+        self.keep_frags_in_mem = False
         # Load index from fragdir
 
     def extend_from_raw_dirs (self, raw_dirs):
         for raw_dir in raw_dirs:
-            self.frags.extend(self.parse_raw_file(raw_dir + market))
+            logging.error("extending from " + raw_dir);
+#            self.frags.extend(self.parse_raw_file(raw_dir + self.market))
+            self.parse_raw_file(raw_dir + self.market)
 
     def parse_raw_file (self, raw_file):
         with open (raw_file, 'r') as fh:
@@ -36,18 +41,18 @@ class FragmentGenerator:
         fragment = None
         i = 0
         for line in lines:
-            if line['payload']['type'] == 'orderBook':
+            if line['payload'][0]['type'] == 'orderBook':
                 if i == 0:
                     assert fragment == None
-                else
+                else:
                     assert fragment != None
-                if (fragment != None)
-                    store_fragment (fragment)
-                    add_to_index (fragment)  # What about the index? And do we want to keep it in memory (yes, but just for consec fragment sanity check)
+                if fragment != None:
+                    self.store_fragment (fragment)
+                    self.add_to_index (fragment)  # What about the index? And do we want to keep it in memory (yes, but just for consec fragment sanity check)
 
                 fragment = Fragment()
-                fragment.asks_ob = SortedDict (self.raw_ob['payload'][0]['data']['asks'])
-                fragment.bids_ob = SortedDict (self.raw_ob['payload'][0]['data']['bids'])
+                fragment.asks_ob = SortedDict (line['payload'][0]['data']['asks'])
+                fragment.bids_ob = SortedDict (line['payload'][0]['data']['bids'])
                 fragment.start = line['time']
 #                fragment.seq = line['seq']
             else:
@@ -56,23 +61,23 @@ class FragmentGenerator:
 #                seq = line['seq']
                 for u in line['payload']:
                     if u['type'] == 'orderBookModify':
-                        up_type = UpType.MODIFY
+                        up_type = MODIFY
                     elif u['type'] == 'orderBookRemove':
-                        up_type = UpType.REMOVE
+                        up_type = REMOVE
                     elif u['type'] == 'newTrade':
-                        up_type = UpType.NEW_TRADE
+                        up_type = NEW_TRADE
                     else:
                         assert False, "u['type'] = " + u['type']
 #                    up_type = UpType.MODIFY if u['type'] == 'orderBookModify' else UpType.REMOVE if u['type'] == 'orderBookRemove' else assert False
 #                    or_type = OrType.ASK if u['date']['type'] == 'ask' else: OrType.BID if u['data']['type'] == 'bid' else: assert False
                     if u['data']['type'] == 'ask':
-                        or_type = OrType.ASK
+                        or_type = ASK
                     elif u['data']['type'] == 'bid':
-                        or_type = OrType.BID
+                        or_type = BID
                     elif u['data']['type'] == 'buy':
-                        or_type = OrType.BUY
+                        or_type = BUY
                     elif u['data']['type'] == 'sell':
-                        or_type = OrType.SELL
+                        or_type = SELL
                     else:
                         assert False, "u['data']['type'] = " + u['data']['type']
                     rate = float(u['data']['rate']) # Can we integerify these two? Do we know they always have 8 decimals in all markets?
@@ -80,22 +85,25 @@ class FragmentGenerator:
                     fragment.updates.append((time, up_type, or_type, rate, amount))
                     if i == 13:
                         logging.error(fragment.updates[-1])
-
-
-
-
-                fragment.updates.append
-
-
-            orderBook - if first, just init fragment. If not, pickle and index the old one, then init.
+                        logging.error(json.dumps(fragment.updates[-1]))
+#            orderBook - if first, just init fragment. If not, pickle and index the old one, then init.
             i = i + 1
-        pickle and index the orderbook and its updates
-        Find a way, on multiple obs i the same raw file, to run the first to the end and compare to the second.
+        self.store_fragment (fragment)
+        self.add_to_index (fragment)  # What about the index? And do we want to keep it in memory (yes, but just for consec fragment sanity check)
+#        pickle and index the orderbook and its updates
+#        Find a way, on multiple obs i the same raw file, to run the first to the end and compare to the second.
 
     def store_fragment (self, fragment):
+        if self.keep_frags_in_mem:
+            self.frags.append(fragment)
+        pickle_fn = self.fragdir + self.market + "/" + str(fragment.start) + ".pickle"
+        if not os.path.exists(self.fragdir + self.market):
+            os.makedirs(self.fragdir + self.market)
+        with open (pickle_fn, 'wb') as fh:
+            pickle.dump (fragment, fh)
+
+    def add_to_index (self, fragment):
         pass
-
-
 
 
 class Fragment:
@@ -115,6 +123,12 @@ class Fragment:
     def save_to_pickle (self, pickle_fn):
         pass
 
+    def get_ob (self, time):
+        if (time < self.start or time > self.end):
+            logging.error("get_ob: time given (" + time + ") outside of fragment range [" + self.start + ", " + self.end + "]")
+            return [];
+        pass
+"""
     def __init__ (self, fn): # Why does this func takes 23s regardless of file size? Also, more than one frag can be stored in a raw file.
 
         self.raw_fn = fn
@@ -161,13 +175,9 @@ class Fragment:
                     rate = float(u['data']['rate'])
                     amount = float(u['data']['amount'])
             logging.error('updates atomized')
+"""
 
 
 
-
-    def get_ob (self, time):
-        if (time < self.start or time > self.end):
-            logging.error("get_ob: time given (" + time + ") outside of fragment range [" + self.start + ", " + self.end + "]")
-            return [];
         
         
