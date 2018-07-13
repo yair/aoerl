@@ -10,6 +10,7 @@ from enum import Enum
 import pickle
 import os
 from collections import deque
+import fnmatch
 
 #class UpType (Enum):
 MODIFY = 0
@@ -26,6 +27,7 @@ REZ = 100000000
 
 class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (after 1 day, let's say, although can be smaller if we can use two consecutive frags in the
                             #       same episode
+                            # TODO: Break up class into generator, index and episode manager, also to different files
 
     def __init__ (self, market, basefragdir):
         self.market = market
@@ -39,7 +41,20 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
             with open (self.index_fn, 'r') as fh:
                 self.index = json.load (fh)
         else:
-            self.index = []
+            self.reindex ()
+
+    def reindex (self):
+        self.index = {}
+        for fn in os.listdir(self.fragdir):
+            if fnmatch.fnmatch(fn, '*.pickle'):
+                f = Fragment (self.fragdir + fn)
+                assert str(f.start) + '.pickle' == fn
+                self.add_to_index (f)
+        self.save_index()
+
+    def save_index (self):
+        with open (self.index_fn, 'w') as fh:
+            json.dump (self.index, fh)
 
     def extend_from_raw_dirs (self, raw_dirs):
         for raw_dir in raw_dirs:
@@ -142,10 +157,16 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
         with open (pickle_fn, 'wb') as fh:
             pickle.dump (fragment, fh)
 
-    def add_to_index (self, fragment):
-        self.index.append((fragment.start, fragment.end))
-        with open (self.index_fn, 'w') as fh:
-            json.dump (self.index, fh)
+    def add_to_index (self, f):
+        assert f.start not in self.index
+        self.index[f.start] = f.end
+#        self.index.append((fragment.start, fragment.end))
+#        with open (self.index_fn, 'w') as fh:
+#            json.dump (self.index, fh)
+
+    def get_random_episode (self, period):
+#        for frag in self.index
+        pass
 
 class Fragment:
     def __init__ (self, pickle_fn = None):

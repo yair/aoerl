@@ -21,6 +21,17 @@ class FragmentGeneratorTestCase(unittest.TestCase):
 #    def test_blank (self):
 #        logging.error('Pre-pickled fragment first update: ' + json.dumps(self.frag_gen.frags[0].updates[0]))
 
+class FragmentGeneratorIndex (unittest.TestCase):
+    def setUp (self):
+        self.frag_gen = FragmentGenerator ('BTC_ETH', '../fragments/')
+
+"""    def test_index (self):
+        index = self.frag_gen.index
+        id = {}
+        for fs, fe in index:
+            self.assertNotIn (f[0], id)
+            id[f[0]] = True """ # No need, done inline
+
 class FragmentTestCase(unittest.TestCase):
     def setUp(self):
         self.fragment = Fragment('../fragments/BTC_ETH/1530224638648.pickle')
