@@ -1,12 +1,12 @@
 from __future__ import absolute_import, division, print_function
 
-#import numpy as np
+import numpy as np
 #import pandas as pd
 import json
 import logging
 from sortedcontainers import SortedDict #, SortedList
 #from sortedcontainers import SortedKeyList
-from enum import Enum
+#from enum import Enum
 import pickle
 import os
 from collections import deque
@@ -24,6 +24,48 @@ BUY = 2
 SELL = 3
 
 REZ = 100000000
+
+class Episode:
+    def __init__ (self, fragment_fn, offset, period):
+        self.f = Fragment (fragment_fn)
+        self.offset = offset    # in millisecond, yes?
+        self.period = period    # ditto, yes?
+        assert self.f.start + offset <= self.f.end
+        self.fstart = self.f.start
+        self.f.advance_to_time (self.f.start + offset)
+
+class EpisodeGenerator:
+    def __init__ (self, market, basefragdir, period):
+        self.period = period
+        self.market = market
+        self.basefragdir = basefragdir
+        self.findex = FragmentGenerator(market, basefragdir).index
+        self.skip_beginning = 0
+        self.skip_ending = period
+
+        self.generate_spans ()
+
+    def generate_spans (self):
+        self.total_interval = 0.
+        self.spans = []
+        logging.error("self.findex's type is " + str(type(self.findex)))
+        for f_fro, f_to in self.findex.items():
+            to = f_to - self.skip_ending # Might also need to belate fro for calcing market stats, although at least some of these can be calced from historical charts
+            fro = f_fro + self.skip_beginning
+            if (to < fro):
+                logging.error("Fragment " + str(f_fro) + ".pickle too short (" + str(f_to - f_fro) + ") for periods of length " + self.period)
+                continue
+            self.total_interval = self.total_interval + (to - fro)
+            self.spans.append ({'from': fro, 'to': to, 'span': (to - fro), 'fragment': f_fro })
+            
+    def get_random_episode (self):
+        point = np.random.random_sample() * self.total_interval;
+        for span in self.spans:
+            if point > span['span']: # Wonderful Span
+                point -= span['span']
+                continue
+            return Episode(basefragdir + market + "/" + span['fragment'] + ".pickle", point, self.period)
+        assert False
 
 class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (after 1 day, let's say, although can be smaller if we can use two consecutive frags in the
                             #       same episode

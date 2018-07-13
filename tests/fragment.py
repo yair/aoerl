@@ -6,10 +6,19 @@ import sys
 import os
 #sys.path.append(os.path.abspath("../market_emulator"))
 sys.path.append(os.path.abspath(".."))
-from market_emulator.fragment import Fragment, FragmentGenerator
+from market_emulator.fragment import Fragment, FragmentGenerator, EpisodeGenerator, Episode
 import logging
 import json
 from copy import deepcopy
+
+class EpisodeGeneratorTestCase (unittest.TestCase):
+    def setUp (self):
+        self.eg = EpisodeGenerator ('BTC_ETH', '../fragments/', 180000)
+
+    def test_random_episode (self):
+        for i in range(0, 30):
+            e = self.eg.get_random_episode()
+            logging.error ('i='+str(i)+' fstart='+str(e.fstart)+' start='+str(e.f.start)+' end='+str(e.f.end))
 
 class FragmentGeneratorTestCase(unittest.TestCase):
     def setUp(self):
