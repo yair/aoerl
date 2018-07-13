@@ -48,15 +48,16 @@ class EpisodeGenerator:
     def generate_spans (self):
         self.total_interval = 0.
         self.spans = []
-        logging.error("self.findex's type is " + str(type(self.findex)))
+#        logging.error("self.findex's type is " + str(type(self.findex)))
         for f_fro, f_to in self.findex.items():
-            to = f_to - self.skip_ending # Might also need to belate fro for calcing market stats, although at least some of these can be calced from historical charts
-            fro = f_fro + self.skip_beginning
+            to = int(f_to) - self.skip_ending
+            fro = int(f_fro) + self.skip_beginning
             if (to < fro):
                 logging.error("Fragment " + str(f_fro) + ".pickle too short (" + str(f_to - f_fro) + ") for periods of length " + self.period)
                 continue
             self.total_interval = self.total_interval + (to - fro)
             self.spans.append ({'from': fro, 'to': to, 'span': (to - fro), 'fragment': f_fro })
+            logging.error('Fragment ' + str(fro) + ' spans ' + str(to - fro) + 'ms')
             
     def get_random_episode (self):
         point = np.random.random_sample() * self.total_interval;
@@ -64,7 +65,7 @@ class EpisodeGenerator:
             if point > span['span']: # Wonderful Span
                 point -= span['span']
                 continue
-            return Episode(basefragdir + market + "/" + span['fragment'] + ".pickle", point, self.period)
+            return Episode(self.basefragdir + self.market + "/" + span['fragment'] + ".pickle", point, self.period)
         assert False
 
 class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (after 1 day, let's say, although can be smaller if we can use two consecutive frags in the

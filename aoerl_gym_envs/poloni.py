@@ -3,7 +3,7 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
 
-from market_emulator.fragment import Fragment, FragmentGenerator
+from market_emulator.fragment import Episode, EpisodeGenerator # Fragment, FragmentGenerator
 
 class PoloniEnv (gym.Env):
     metadata = {'render.modes': ['human']}
@@ -21,7 +21,7 @@ class PoloniEnv (gym.Env):
         self.average_volume = 1.6 # BTC per period
         self.full_inventory = 0.1 # BTC
 #        self.fragment_generator = FragmentGenerator (self.market, '../fragments') # TODO: seed
-        self.episode_generator = EpisodeGenerator (self.market, '../fragments', self.period) # TODO: seed
+        self.episode_generator = EpisodeGenerator (self.market, '../fragments/', self.period) # TODO: seed
 
     def seed (self, seed):
         self.seed = seed
@@ -32,7 +32,7 @@ class PoloniEnv (gym.Env):
     def reset(self):
         self.inventory = self.full_inventory
         self.remaining_time = self.period
-        self.episode = self.episode_generator.get_random_episode (self.period)
+        self.episode = self.episode_generator.get_random_episode ()
         pass
 
     def render(self, mode='human', close=False):
