@@ -32,7 +32,72 @@ class Episode:
         self.period = period    # ditto, yes?
         assert self.f.start + offset <= self.f.end
         self.fstart = self.f.start
-        self.f.advance_to_time (self.f.start + offset)
+        self.estart = self.f.start + offset
+        self.f.advance_to_time (self.estart)
+
+    def set_mode (self, mode):
+        self.mode = mode
+
+    def step (self, inventory, price):
+        transactions = []
+        remaining_time = self.f.updates[0][0] - self.estart # a bit of a cheat if we collide pre-step
+        assert remaining_time >=0
+        assert remaining_time <= self.estart + self.period
+
+        # Check for collisions between the old environment and the action
+        i = 0
+        if self.mode == 0: # BUY
+            while price >= self.f.ob_asks.keys()[i]:
+                if inventory <= self.f.ob_asks.values()[i]:
+                    transactions.append({price: self.f.ob_asks.keys()[i], amount: inventory})
+                    return (remaining_time, 0, transactions)
+                else:
+                    transactions.append({price: self.f.ob_asks.keys()[i], amount: self.f.ob_asks.values()[i]})
+                    inventory = inventory - self.f.ob_asks.values()[i]
+                i = i + 1   # Why does this god forsaken language not support for loops?!
+        else:
+            while price <= self.f.ob_bids.keys()[i]:
+                if inventory <= self.f.ob_bids.values()[i]:
+                    transactions.append({price: self.f.ob_bids.keys()[i], amount: inventory})
+                    return (remaining_time, 0, transactions)
+                else:
+                    transactions.append({price: self.f.ob_bids.keys()[i], amount: self.f.ob_bids.values()[i]})
+                    inventory = inventory - self.f.ob_bids.values()[i]
+                i = i + 1   # Why does this god forsaken language not support for loops?!
+
+        u = self.f.single_step ()
+        
+        if u[2] == REMOVE:  # That can't collide
+            return (remaining_time, inventory, transactions)
+        if ((self.mode == 0 and (u[3] == SELL or u[3] == ASK) and u[4] <= price) or
+            (self.mode == 1 and (u[3] == BUY or u[3] == BID) and u[4] >= price)):
+            if inventory <= u[5]:
+                transactions.append({price: price, amount: inventory})
+                return (remaining_time, 0, transactions)
+            else:
+                transactions.append({price: price, amount: u[5]})
+                return (remaining_time, inventory - u[5], transactions)
+        return (remaining_time, inventory, transactions)
+
+    def market_order (inventory):
+        i = 0
+        transactions = []
+        ob = None
+        if self.mode == 0: # BUY
+            ob = self.f.ob_asks
+        else:
+            ob = self.f.ob_bids
+
+        while True:
+            if inventory <= self.f.ob_asks.values()[i]:
+                transactions.append({price: self.f.ob_asks.keys()[i], amount: inventory})
+                return transactions
+            else:
+                transactions.append({price: self.f.ob_asks.keys()[i], amount: self.f.ob_asks.values()[i]})
+                inventory = inventory - self.f.ob_asks.values()[i]
+            i = i + 1   # Why does this god forsaken language not support for loops?!
+
+        assert False
 
 class EpisodeGenerator:
     def __init__ (self, market, basefragdir, period):
@@ -248,7 +313,7 @@ class Fragment:
     def get_slice(self, time, duration):  # both in ms
         pass
 
-    def single_step (self): # Really? How do we check collisions like that?
+    def single_step (self): # Really? How do we check collisions like that? By returning the update. Let the caller check.
 #        u = self.updates.popitem(0)
         u = self.updates.popleft()
 #        logging.error("single step: " + str(self.start) + " => " + str(u[0]));
@@ -277,6 +342,7 @@ class Fragment:
             self.modifies = self.modifies + 1
         else:
             assert False
+        return u
 
     def get_ob (self, time):
         if (time < self.start or time > self.end):
