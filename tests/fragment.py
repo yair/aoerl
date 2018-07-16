@@ -1,45 +1,13 @@
 import unittest
 import importlib
-#importlib.import('../market_emulator/fragment.py')
-#__import__('../market_emulator/fragment.py')
 import sys
 import os
-#sys.path.append(os.path.abspath("../market_emulator"))
 sys.path.append(os.path.abspath(".."))
-from market_emulator.fragment import Fragment, FragmentGenerator, EpisodeGenerator, Episode
 import logging
 import json
 from copy import deepcopy
 
-class EpisodeGeneratorTestCase (unittest.TestCase):
-    def setUp (self):
-        self.eg = EpisodeGenerator ('BTC_ETH', '../fragments/', 180000)
-
-    def test_random_episode (self):
-        for i in range(0, 10):
-            e = self.eg.get_random_episode()
-            logging.error ('i='+str(i)+' fstart='+str(e.fstart)+' start='+str(e.f.start)+' end='+str(e.f.end))
-
-class FragmentGeneratorTestCase(unittest.TestCase):
-    def setUp(self):
-        self.frag_gen = FragmentGenerator ('BTC_ETH', '../fragments/')
-        self.frag_gen.keep_frags_in_mem = True
-        self.frag_gen.force_overwrite_frags = True
-        self.frag_gen.extend_from_raw_dirs(['../data/1530224636/'])
-
-#    def test_blank (self):
-#        logging.error('Pre-pickled fragment first update: ' + json.dumps(self.frag_gen.frags[0].updates[0]))
-
-class FragmentGeneratorIndex (unittest.TestCase):
-    def setUp (self):
-        self.frag_gen = FragmentGenerator ('BTC_ETH', '../fragments/')
-
-"""    def test_index (self):
-        index = self.frag_gen.index
-        id = {}
-        for fs, fe in index:
-            self.assertNotIn (f[0], id)
-            id[f[0]] = True """ # No need, done inline
+from market_emulator.fragment import Fragment
 
 class FragmentTestCase(unittest.TestCase):
     def setUp(self):

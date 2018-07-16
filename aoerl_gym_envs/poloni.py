@@ -16,7 +16,7 @@ ALU_NEAR     = 5
 ALU_MID      = 6
 ALU_FAR      = 7
 
-# Mode LookUp
+# Mode LookUp # TODO: move to episode, and have a third option of random
 MLU_BUY = 0
 MLU_SELL = 1
 
@@ -36,7 +36,7 @@ class PoloniEnv (gym.Env):
         self.period = 180 # seconds
         self.market = 'BTC_ETH'
         self.average_volume = 1.6 # BTC per period
-        self.full_inventory = 0.1 # BTC
+        self.full_inventory = 0.1 # BTC     # TODO: bracketing
 #        self.fragment_generator = FragmentGenerator (self.market, '../fragments') # TODO: seed
         self.episode_generator = EpisodeGenerator (self.market, '../fragments/', self.period) # TODO: seed
 

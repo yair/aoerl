@@ -35,13 +35,15 @@ class Episode:
                     inventory = inventory - self.f.ob_asks.values()[i]
                 i = i + 1   # Why does this god forsaken language not support for loops?!
         else:
-            while price <= self.f.ob_bids.keys()[i]:
-                if inventory <= self.f.ob_bids.values()[i]:
-                    transactions.append({price: self.f.ob_bids.keys()[i], amount: inventory})
+#            while price <= self.f.ob_bids.keys()[i]:
+            while price <= self.f.ob_bids.__reverse__()[i]:
+#                if inventory <= self.f.ob_bids.values()[i]: # nope, use the hash
+                if inventory <= self.f.ob_bids.values()[-i-1]: # nope, use the hash
+                    transactions.append({price: self.f.ob_bids.__reverse__()[i], amount: inventory})
                     return (remaining_time, 0, transactions)
                 else:
-                    transactions.append({price: self.f.ob_bids.keys()[i], amount: self.f.ob_bids.values()[i]})
-                    inventory = inventory - self.f.ob_bids.values()[i]
+                    transactions.append({price: self.f.ob_bids.__reverse__()[i], amount: self.f.ob_bids.values()[-i-1]})
+                    inventory = inventory - self.f.ob_bids.values()[-i-1]
                 i = i + 1   # Why does this god forsaken language not support for loops?!
 
         u = self.f.single_step ()
@@ -62,11 +64,24 @@ class Episode:
         i = 0
         transactions = []
         ob = None
+        obkeys = None
         if self.mode == 0: # BUY
             ob = self.f.ob_asks
+            obkeys = self.f.ob_asks.keys()
         else:
             ob = self.f.ob_bids
+            obkeys = self.f.ob_bids.__reverse__()
 
+        while True:
+            v = ob[obkeys[i]]
+            if inventory <= v:
+                transactions.append({price: obkeys[i], amount: inventory})
+                return transactions
+            else:
+                transactions.append({price: obkeys[i], amount: v})
+                inventory = inventory - v
+            i = i + 1   # Why does this god forsaken language not support for loops?!
+            """
         while True:
             if inventory <= self.f.ob_asks.values()[i]:
                 transactions.append({price: self.f.ob_asks.keys()[i], amount: inventory})
@@ -75,5 +90,6 @@ class Episode:
                 transactions.append({price: self.f.ob_asks.keys()[i], amount: self.f.ob_asks.values()[i]})
                 inventory = inventory - self.f.ob_asks.values()[i]
             i = i + 1   # Why does this god forsaken language not support for loops?!
+            """
 
         assert False

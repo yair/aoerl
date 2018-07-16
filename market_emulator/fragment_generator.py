@@ -7,7 +7,8 @@ import pickle
 import os
 import fnmatch
 
-from market_emulator.fragment import Fragment
+from market_emulator.fragment import *
+from market_emulator.fragment_index import FragmentIndex
 
 class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (after 1 day, let's say, although can be smaller if we can use two consecutive frags in the
                             #       same episode
@@ -19,26 +20,19 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
         self.frags = []
         self.keep_frags_in_mem = False
         self.force_overwrite_frags = False
-        self.index_fn = self.fragdir + "index.json"
+#        self.index_fn = self.fragdir + "index.json"
         # Load index from fragdir
-        if os.path.exists(self.index_fn):
-            with open (self.index_fn, 'r') as fh:
-                self.index = json.load (fh)
-        else:
+        self.index = FragmentIndex (market, basefragdir)
+        if not self.index.loaded:
             self.reindex ()
 
     def reindex (self):
-        self.index = {}
         for fn in os.listdir(self.fragdir):
             if fnmatch.fnmatch(fn, '*.pickle'):
                 f = Fragment (self.fragdir + fn)
                 assert str(f.start) + '.pickle' == fn
-                self.add_to_index (f)
-        self.save_index()
-
-    def save_index (self):
-        with open (self.index_fn, 'w') as fh:
-            json.dump (self.index, fh)
+                self.index.add_frag (f)
+        self.index.save()
 
     def extend_from_raw_dirs (self, raw_dirs):
         for raw_dir in raw_dirs:
@@ -62,7 +56,7 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
                 if fragment != None:
                     fragment.end = fragment.updates[-1][0]
                     self.store_fragment (fragment)
-                    self.add_to_index (fragment)  # What about the index? And do we want to keep it in memory (yes, but just for consec fragment sanity check)
+                    self.index.add_frag (fragment)  # What about the index? And do we want to keep it in memory (yes, but just for consec fragment sanity check)
 
                 fragment = Fragment()
                 fragment.asks_ob = self.init_sorted_dict (line['payload'][0]['data']['asks'])
@@ -103,7 +97,7 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
             i = i + 1
         fragment.end = fragment.updates[-1][U_TIME]
         self.store_fragment (fragment)
-        self.add_to_index (fragment)
+        self.index.add_frag (fragment)
 
     def init_sorted_dict (self, d): # TODO: Diff bids from asks (the latter should be reversed)
         ret = SortedDict()
@@ -125,7 +119,3 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
                 return
         with open (pickle_fn, 'wb') as fh:
             pickle.dump (fragment, fh)
-
-    def add_to_index (self, f):
-        assert f.start not in self.index
-        self.index[f.start] = f.end
