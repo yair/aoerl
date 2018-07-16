@@ -13,15 +13,23 @@ from collections import deque
 import fnmatch
 
 #class UpType (Enum):
-MODIFY = 0
-REMOVE = 1
-NEW_TRADE = 2
+UPT_MODIFY = 0
+UPT_REMOVE = 1
+UPT_NEW_TRADE = 2
 
 #class OrType (Enum):
-ASK = 0
-BID = 1
-BUY = 2
-SELL = 3
+ORT_ASK = 0
+ORT_BID = 1
+ORT_BUY = 2
+ORT_SELL = 3
+
+#ob update tuple
+U_TIME  = 0
+U_UID   = 1
+U_UPT   = 2
+U_ORT   = 3
+U_RATE  = 4
+U_VOL   = 5
 
 REZ = 100000000
 
@@ -40,8 +48,8 @@ class Episode:
 
     def step (self, inventory, price):
         transactions = []
-        remaining_time = self.f.updates[0][0] - self.estart # a bit of a cheat if we collide pre-step
-        assert remaining_time >=0
+        remaining_time = self.f.updates[0][U_TIME] - self.estart # a bit of a cheat if we collide pre-step
+        assert remaining_time >=0 # This is wrong
         assert remaining_time <= self.estart + self.period
 
         # Check for collisions between the old environment and the action
@@ -67,16 +75,16 @@ class Episode:
 
         u = self.f.single_step ()
         
-        if u[2] == REMOVE:  # That can't collide
+        if u[U_UPT] == UPT_REMOVE:  # That can't collide
             return (remaining_time, inventory, transactions)
-        if ((self.mode == 0 and (u[3] == SELL or u[3] == ASK) and u[4] <= price) or
-            (self.mode == 1 and (u[3] == BUY or u[3] == BID) and u[4] >= price)):
-            if inventory <= u[5]:
+        if ((self.mode == 0 and (u[U_ORT] == ORT_SELL or u[U_ORT] == ORT_ASK) and u[U_RATE] <= price) or
+            (self.mode == 1 and (u[U_ORT] == ORT_BUY  or u[U_ORT] == ORT_BID) and u[U_RATE] >= price)):
+            if inventory <= u[U_VOL]:
                 transactions.append({price: price, amount: inventory})
                 return (remaining_time, 0, transactions)
             else:
-                transactions.append({price: price, amount: u[5]})
-                return (remaining_time, inventory - u[5], transactions)
+                transactions.append({price: price, amount: u[U_VOL]})
+                return (remaining_time, inventory - u[U_VOL], transactions)
         return (remaining_time, inventory, transactions)
 
     def market_order (inventory):
@@ -204,23 +212,23 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
 #                seq = line['seq']
                 for u in line['payload']:
                     if u['type'] == 'orderBookModify':
-                        up_type = MODIFY
+                        up_type = UPT_MODIFY
                     elif u['type'] == 'orderBookRemove':
-                        up_type = REMOVE
+                        up_type = UPT_REMOVE
                     elif u['type'] == 'newTrade':
-                        up_type = NEW_TRADE
+                        up_type = UPT_NEW_TRADE
                     else:
                         assert False, "u['type'] = " + u['type']
 #                    up_type = UpType.MODIFY if u['type'] == 'orderBookModify' else UpType.REMOVE if u['type'] == 'orderBookRemove' else assert False
 #                    or_type = OrType.ASK if u['date']['type'] == 'ask' else: OrType.BID if u['data']['type'] == 'bid' else: assert False
                     if u['data']['type'] == 'ask':
-                        or_type = ASK
+                        or_type = ORT_ASK
                     elif u['data']['type'] == 'bid':
-                        or_type = BID
+                        or_type = ORT_BID
                     elif u['data']['type'] == 'buy':
-                        or_type = BUY
+                        or_type = ORT_BUY
                     elif u['data']['type'] == 'sell':
-                        or_type = SELL
+                        or_type = ORT_SELL
                     else:
                         assert False, "u['data']['type'] = " + u['data']['type']
 #                    rate = float(u['data']['rate']) # Can we integerify these two? Do we know they always have 8 decimals in all markets?
@@ -238,13 +246,13 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
                         logging.error(json.dumps(fragment.updates[-1]))
 #            orderBook - if first, just init fragment. If not, pickle and index the old one, then init.
             i = i + 1
-        fragment.end = fragment.updates[-1][0]
+        fragment.end = fragment.updates[-1][U_TIME]
         self.store_fragment (fragment)
         self.add_to_index (fragment)  # What about the index? And do we want to keep it in memory (yes, but just for consec fragment sanity check)
 #        pickle and index the orderbook and its updates
 #        Find a way, on multiple obs i the same raw file, to run the first to the end and compare to the second.
 
-    def init_sorted_dict (self, d):
+    def init_sorted_dict (self, d): # TODO: Diff bids from asks (the latter should be reversed)
         ret = SortedDict()
         for key, value in d.items():
             ret.update ({int(round(float(key) * REZ)) : int(round(float(value) * REZ))})
@@ -306,7 +314,7 @@ class Fragment:
         logging.error("Advancing from " + str(self.start) + " to " + str(time))
         self.removes = 0
         self.modifies = 0
-        while self.updates.__len__() > 0 and self.updates[0][0] <= time:
+        while self.updates.__len__() > 0 and self.updates[0][U_TIME] <= time:
             self.single_step()
         logging.error('Advancing done after ' + str(self.removes) + ' removes and ' + str(self.modifies) + ' modifications')
 
@@ -317,28 +325,28 @@ class Fragment:
 #        u = self.updates.popitem(0)
         u = self.updates.popleft()
 #        logging.error("single step: " + str(self.start) + " => " + str(u[0]));
-        self.start = u[0]
+        self.start = u[U_TIME]
         ob = None
 #                    fragment.updates.add((time, uid, up_type, or_type, rate, amount))
-        if u[2] == NEW_TRADE:
+        if u[U_UPT] == UPT_NEW_TRADE:
             return
-        if u[3] == ASK:
+        if u[U_ORT] == ORT_ASK:
             ob = self.asks_ob
-        elif u[3] == BID:
+        elif u[U_ORT] == ORT_BID:
             ob = self.bids_ob
         else:
             assert False, "u = " + str(u)
-        if u[2] == REMOVE:
+        if u[U_UPT] == UPT_REMOVE:
 #            if (u[4] in ob):
 #                logging.error('removing (existing) order at ' + str(u[4]))
-            assert u[4] in ob, 'About to remove ' + str(u[4]) + ' from ob, but it is not there'
+            assert u[U_RATE] in ob, 'About to remove ' + str(u[U_RATE]) + ' from ob, but it is not there'
 #            ob.popitem(u[4])
-            ob.pop(u[4])
-            assert u[4] not in ob, 'Order at ' + str(u[4]) + ' still in ob after removal'
+            ob.pop(u[U_RATE])
+            assert u[U_RATE] not in ob, 'Order at ' + str(u[U_RATE]) + ' still in ob after removal'
             self.removes = self.removes + 1
-        elif u[2] == MODIFY:
-            ob.update({u[4]: u[5]})
-            assert u[4] in ob, 'Order at ' + str(u[4]) + ' not in ob after modification'
+        elif u[U_UPT] == UPT_MODIFY:
+            ob.update({u[U_RATE]: u[U_VOL]})
+            assert u[U_RATE] in ob, 'Order at ' + str(u[U_RATE]) + ' not in ob after modification'
             self.modifies = self.modifies + 1
         else:
             assert False
