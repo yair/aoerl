@@ -5,13 +5,15 @@ import logging
 
 from market_emulator.episode import Episode
 from market_emulator.fragment_generator import FragmentGenerator
+from market_emulator.fragment_index import FragmentIndex
 
 class EpisodeGenerator:     # TODO: Handle consecutive 'mini-fragments'
     def __init__ (self, market, basefragdir, period):
         self.period = period
         self.market = market
         self.basefragdir = basefragdir
-        self.findex = FragmentGenerator(market, basefragdir).index
+#        self.findex = FragmentGenerator(market, basefragdir).index
+        self.findex = FragmentIndex(market, basefragdir)
         self.skip_beginning = 0
         self.skip_ending = period
 
@@ -20,7 +22,7 @@ class EpisodeGenerator:     # TODO: Handle consecutive 'mini-fragments'
     def generate_spans (self):
         self.total_interval = 0.
         self.spans = []
-        for f_fro, f_to in self.findex.items():
+        for f_fro, f_to in self.findex.index.items():
             to = int(f_to) - self.skip_ending
             fro = int(f_fro) + self.skip_beginning
             if (to < fro):

@@ -3,10 +3,11 @@ import importlib
 import sys
 import os
 sys.path.append(os.path.abspath(".."))
+from market_emulator.fragment_index import FragmentIndex
 from market_emulator.fragment_generator import FragmentGenerator
 import logging
 
-class FragmentGeneratorIndex (unittest.TestCase):
+class FragmentGeneratorTestCase (unittest.TestCase):
     def setUp (self):
         self.frag_gen = FragmentGenerator ('BTC_ETH', '../fragments/')
         self.frag_gen.keep_frags_in_mem = True
