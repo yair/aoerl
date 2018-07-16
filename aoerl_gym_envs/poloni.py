@@ -3,7 +3,8 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
 
-from market_emulator.fragment import Episode, EpisodeGenerator # Fragment, FragmentGenerator
+from market_emulator.episode_generator import EpisodeGenerator
+from market_emulator.episode import Episode
 
 # Action LookUp
 ALU_1AV      = 0
