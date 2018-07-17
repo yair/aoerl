@@ -61,7 +61,7 @@ class Fragment:
         self.start = u[U_TIME]
         ob = None
         if u[U_UPT] == UPT_NEW_TRADE:
-            return
+            return u    # That, on its own, doesn't affect the order books
         if u[U_ORT] == ORT_ASK:
             ob = self.asks_ob
         elif u[U_ORT] == ORT_BID:
