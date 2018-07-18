@@ -1,6 +1,16 @@
-Since we're dealing with smaller volumes, we need to decide wether action space is really made of price points or strategies (highest bid, midway, etc.).
+- Make the output continuous. It'll be easier on the bot. Can also decrease NN size to 2x4x1 or 2x4x4x1 or something.
+
+- Print the decision chart at the end of training (by grid sampling)
+- Bunch time steps together. No need to decide more than 8 (no. of strats) times per episode.
+- Restrict fragment length to 4 hours or so
+- Run over entire fragment, starting at 1 minute intervals
+- Think hard about rl algo. 8x8->8 needs no approximation
+- If using rl-keras after all, get tensorboard on board
 
 Future:
 - Combine aoerl and PGP to jointly test them to determine optimal trading period lengths.
 - Investigate benefits of having two limit orders simultaneously.
 - Once we combine market state variables into aoerl, we can train it to estimate cost in advance, and put that in the consumption tensor of PGP.
+
+done:
+Since we're dealing with smaller volumes, we need to decide wether action space is really made of price points or strategies (highest bid, midway, etc.).
