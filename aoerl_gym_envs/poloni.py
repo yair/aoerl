@@ -3,6 +3,7 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
 import logging
+import math
 
 from market_emulator.episode_generator import EpisodeGenerator
 from market_emulator.episode import Episode
@@ -28,7 +29,8 @@ class PoloniEnv (gym.Env):
 
     def __init__ (self):
         self.observation_space = spaces.Box (low=0., high=1., shape=(2,), dtype=np.float32) # time left (monotonouosly decreasing) and inventory left (same)
-        self.action_space = spaces.Discrete(8) # [-1*AV, -.5*AV, -.25*AV, -.125*AV, -.0625*AV, bottom, middle, top]
+        self.action_space = spaces.Box (low=0., high=1., shape=(1,), dtype=np.float32) # Aggressiveness (discretized into strategies)
+#        self.action_space = spaces.Discrete(8) # [-1*AV, -.5*AV, -.25*AV, -.125*AV, -.0625*AV, bottom, middle, top]
         self.configure()
         self.reset()
         pass
@@ -49,14 +51,15 @@ class PoloniEnv (gym.Env):
     def calc_reward (self, transactions):
         r = 0
         for t in transactions:
-            r = r + ((t['price'] - self.benchmark_price) / self.benchmark_price) * (t['amount'] / self.full_inventory) # this is very small. Too?
+            r = r + 100 * ((t['price'] - self.benchmark_price) / self.benchmark_price) * (t['amount'] / self.full_inventory) # In percents now. :/
         if self.mode == MLU_BUY:
             r = r * -1
         return r
 
     def step(self, action):
         # calc next order
-        price = self.action_price (action)
+        logging.error('action type is ' + str(type(action)))
+        price = self.action_price (int (math.floor (action * 8)))
         (self.remaining_time, self.inventory, transactions) = self.episode.step (self.inventory, price)
         reward = self.calc_reward (transactions)
         # TODO: handle transaction (calc reward)
@@ -67,7 +70,7 @@ class PoloniEnv (gym.Env):
             transactions = self.episode.market_order (self.inventory)
             reward = reward + self.calc_reward (transactions)
             self.inventory = 0
-        logging.error ('env.step returning: ' + str(((self.remaining_time, self.inventory), reward, self.inventory <= 0, {})) + ' A:' + str(action))
+        logging.error ('env.step returning: ' + str(((self.remaining_time, self.inventory), reward, self.inventory <= 0, {})) + ' A:' + str(action) + '->' + str(int(math.floor(action * 8))))
         return (self.remaining_time, self.inventory), reward, self.inventory <= 0, {}
 
     def reset(self):
