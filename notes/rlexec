@@ -1,0 +1,16 @@
+Trying to reimplement algorithm from https://www.seas.upenn.edu/~mkearns/papers/rlexec.pdf (see also early notes in this folder)
+
+Vars from teh paper --
+
+T - number of time steps per episode
+H - Episode length (in seconds, say)
+H/T - length (in seconds, say) of a time step
+t = [0, ..., T] - current time interval
+V - Total volume to transact (in shares, say)
+I - Number of volume steps
+V/I - Volume (in shares, say) in each volume step
+i = [0, .., V/I] ?!?!?! Supposed to be every possible step, but the unites are of shares, say, and not of steps. Should be i = [0, .., I]
+a - positive or negative. 0 is the current ask (for selling). a > 0 is crossing the gap. a < 0 is inside the book. But what are the bloody units?! How do I discretize this?! You can do it by experimenting, but I don't ever have an idea where to begin - The positive and negative regimes are so different. I think we'll stay with our current 8 steps. Or maybe do we want to nibble at the other book? Dunno.
+
+Data structure --
+We can't use any chart data for this, as we can't tell if a wick had enough volume to fill our bids completely or not. Since we will be running time backwards, the first thing to do is to build a reversed update stream, and keeping the final order books. Ick.

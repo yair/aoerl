@@ -38,6 +38,8 @@ class Fragment:
         self.start = None
         self.end = None
         self.updates = deque()
+        self.removes = 0
+        self.modifies = 0
 
     def load_from_pickle (self, pickle_fn):
         with open (pickle_fn, 'rb') as fh:
@@ -47,6 +49,8 @@ class Fragment:
             self.start = tmpfrag.start
             self.end = tmpfrag.end
             self.updates = deque (tmpfrag.updates)
+            self.removes = 0
+            self.modifies = 0
 
     def advance_to_time(self, time):
         logging.error("Advancing from " + str(self.start) + " to " + str(time))
@@ -86,6 +90,5 @@ class Fragment:
             logging.error("get_ob: time given (" + time + ") outside of fragment range [" + self.start + ", " + self.end + "]")
             assert False
             return [];
-
         last_update = self.find_last_update (time)
         return run_to_update(last_update)

@@ -1,11 +1,11 @@
 https://www.seas.upenn.edu/~mkearns/papers/rlexec.pdf -- This is from 2k6, yes?
 
 3.
-States - Restricted resolution of states variables. Why? Are the they encoded as one-hot variables instead of normalized variables?
-Crossing a time resolution step allows them to revise their limit orders. From this we can also infer that they use absolute price values, not relative to 'center of mass' of order books, highest bid or somesuch (although I seem to remember that in the video the charts were given relative to highest bid).
+States - Restricted resolution of states variables. Why? Are the they encoded as one-hot variables instead of normalized variables? -- No, they are discrete variables in the Q array (together with the action space).
+Crossing a time resolution step allows them to revise their limit orders. From this we can also infer that they use absolute price values, not relative to 'center of mass' of order books, highest bid or somesuch (although I seem to remember that in the video the charts were given relative to highest bid). -- It seems the reference point is the midgap at episdoe start.
 Actions - The action a is interpreted relative to the current highest bid (for buys). So why are they only interpret it once every (relatively rare) time step? Odd.
 - Positive a - crossing the spread. Negative a - going inside the book.
-Rewards - price relative to the mid-gap point. But what about normalization? They just measure it in basis points. Fine.
+Rewards - price relative to the mid-gap point. But what about normalization? They just measure it in basis points. Fine. -- And they don't compare to other assets, and their assets are not very volatile. This is all wrong for us.
 - The assume 0 fees. We have to include both their existence and the difference between market making and taking.
 Algorithm - I don't understand how they can make the Markovian assumption that actions are independent of previous actions - if you didn't transact during the whole episode we'll pay worst price at the end. Isn't that an effect?
 - That's nice - instead of just starting at overlapping points in time, they take each and every data point and ask what if we had every combination of time and volume remaining, thus using the data most efficiently.
