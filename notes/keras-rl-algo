@@ -1,0 +1,3 @@
+SARSA - only has discrete outputs. bleh.
+DDPG - isn't actor critic overkill?
+DQN - seems like what we need
