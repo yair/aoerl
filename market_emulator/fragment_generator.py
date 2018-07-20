@@ -8,7 +8,7 @@ import os
 import fnmatch
 
 from market_emulator.fragment import *
-from market_emulator.reverse_fragment import ReverseFragment
+#from market_emulator.reverse_fragment import ReverseFragment
 from market_emulator.fragment_index import FragmentIndex
 
 class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (after 1 day, let's say, although can be smaller if we can use two consecutive frags in the
@@ -102,9 +102,9 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
         fragment.end = fragment.updates[-1][U_TIME]
         self.store_fragment (fragment)
         self.index.add_frag (fragment)
-        rv = ReverseFragment (None)
-        rv.init_from_fragment (fragment)
-        self.store_reversed_fragment (rv)
+#        rv = ReverseFragment (None)
+#        rv.init_from_fragment (fragment)
+#        self.store_reversed_fragment (rv)
 
     def init_sorted_dict (self, d): # TODO: Diff bids from asks (the latter should be reversed)
         ret = SortedDict()

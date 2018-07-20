@@ -5,6 +5,7 @@ from copy import deepcopy
 import itertools
 import time
 import json
+import os
 
 import numpy as np
 import math
@@ -58,10 +59,7 @@ class RLExec:
                 self.train_fragment (i, Fragment (fn))
             self.calc_optimal_actions (i)
             logging.error('Q = ' + str(self.q))
-        with open (join (self.fragdir, 'policy_' + str(time.time()) + '.json'), 'w') as fh:
-            json.dump (self.optimal_actions.tolist(), fh)
-        with open (join (self.fragdir, 'q_' + str(time.time()) + '.json'), 'w') as fh:
-            json.dump (self.q.tolist(), fh)
+        self.dump_results ()
 
     def train_fragment (self, i, f):
         episodes = int(math.floor((f.end - f.start) / self.elen))
@@ -280,6 +278,17 @@ class RLExec:
         for mode in (MLU_BUY, MLU_SELL):
             for i in range (self.vol_rez):
                 self.optimal_actions[mode][t][i] = np.argmax (self.q[mode][t][i])
+
+    def dump_results (self):
+        dumpdir = join ('../rlexec_output/', str(int(time.time())))
+        if not os.path.exists(dumpdir):
+            os.makedirs(dumpdir)
+        with open (join (dumpdir, 'policy.json'), 'w') as fh:
+            json.dump (self.optimal_actions.tolist(), fh)
+        with open (join (dumpdir, 'q.json'), 'w') as fh:
+            json.dump (self.q.tolist(), fh)
+        with open (join (dumpdir, 'fragments.json'), 'w') as fh:
+            json.dump (self.frag_fns, fh)
 
 if __name__ == '__main__':
     RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 10000000, 8, 1.6).train_all ()
