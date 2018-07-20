@@ -4,12 +4,13 @@ from fnmatch import fnmatch
 from copy import deepcopy
 import itertools
 import time
+import json
 
 import numpy as np
 import math
 
 from market_emulator.fragment import *
-from market_emulator.reverse_fragment import ReverseFragment
+#from market_emulator.reverse_fragment import ReverseFragment
 
 ACTIONS = 8
 
@@ -29,7 +30,6 @@ MLU_SELL = 1
 
 PRICE_RESOLUTION = 1    # satoshi (whatabout BTC_USD?)
 
-
 class RLExec:
     def __init__ (self, basefragdir, market, period, time_rez, volume, vol_rez, average_vol):
         self.period = period        # in ms
@@ -37,58 +37,74 @@ class RLExec:
         self.volume = volume        # in satoshi
         self.vol_rez = vol_rez      # number of volume intervals
         self.fragdir = join (basefragdir, market)
-#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*reversed.pickle')])
-        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739_reversed.pickle')])
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*reversed.pickle')])                 # reversed
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739_reversed.pickle')])   # reversed
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # untested
+        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])
         self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
         self.elen = float(self.period) / self.time_rez
         self.gen = 0. # Global Episode Number, for normalization
         self.average_volume = average_vol
+        self.optimal_actions = np.zeros((2, time_rez, vol_rez), dtype=int)
 
     def train_all (self):
-        for i in range(self.time_rez - 1, -1, -1):
+        for i in range(self.time_rez - 1, -1, -1):  # The only time that _should_ be reversed is the internal q-table intervals
             logging.error('===================================================')
             logging.error('Now calculating optimal action for time step ' + str(i+1) + '/' + str(self.time_rez))
             logging.error('===================================================')
+            self.gen = 0
             for fn in self.frag_fns:
-                self.train_fragment (i, ReverseFragment (fn))
-            logging.error(str(self.q))
+#                self.train_fragment (i, ReverseFragment (fn))
+                self.train_fragment (i, Fragment (fn))
+            self.calc_optimal_actions (i)
+            logging.error('Q = ' + str(self.q))
+        with open (join (self.fragdir, 'policy_' + str(time.time()) + '.json'), 'w') as fh:
+            json.dump (self.optimal_actions.tolist(), fh)
+        with open (join (self.fragdir, 'q_' + str(time.time()) + '.json'), 'w') as fh:
+            json.dump (self.q.tolist(), fh)
 
-    def train_fragment (self, i, rf):
-        episodes = int(math.floor((rf.end - rf.start) / self.elen))
+    def train_fragment (self, i, f):
+        episodes = int(math.floor((f.end - f.start) / self.elen))
+        f.orig_start = f.start
         logging.error('This fragment contains ' + str(episodes) + ' episodes of ' + str(self.elen) + 'ms')
         # TODO: Drop first episode
-        for e in range (episodes - 1, -1, -1):
+#        for e in range (episodes - 1, -1, -1):      # reversed
+        for eid in range (episodes):
             a = time.time()
-            (rf, oe) = self.get_episode (rf, e)
-            oe.mo_cost = market_order_cost (oe)
+            (f, e) = self.get_episode (f, eid)
+            e.mo_cost = self.market_order_cost (e)
             b = time.time()
-            self.train_episode (i, oe, MLU_BUY)
+            self.train_episode (i, e, MLU_BUY)
+            self.train_episode (i, e, MLU_SELL)
             c = time.time()
             logging.error('fetching episode took ' + str (b-a) + 's. Training took ' + str (c-b) + 's')
+            self.gen = self.gen + 1
 #            self.train_episode (i, oe, MLU_SELL)
 
-    def get_episode (self, rf, e):
+    def get_episode (self, f, eid):
         x = 0
-        oe = ReverseFragment (None)
-        oe.start = rf.start + e * self.elen
-        oe.end = rf.start + (e + 1) * self.elen
+#        e = ReverseFragment (None)
+        e = Fragment (None)
+        e.start = f.orig_start + eid * self.elen
+        e.end = f.orig_start + (eid + 1) * self.elen
 #        rf.updates = deque (itertools.islice (rf.updates, fro, to)...
-        while rf.updates[0][U_TIME] > oe.end:
-            rf.updates.popleft ()
+        while f.updates[0][U_TIME] < e.start:
+#            rf.updates.popleft ()   # WHY?!?! We need to do a proper fragment.single_step to update the order books.
+            f.single_step () # Now that didn't doesn't advance at all. What is going on? it changes self.start. Bah. Why? Bah.
             x = x + 1
         y = 0
-        while rf.updates[y][U_TIME] > oe.start and y + 1 < rf.updates.__len__():
+        while f.updates[y][U_TIME] < e.end and y + 1 < f.updates.__len__():
 #            if y + 1 == rf.updates.__len__():
 #                logging.error('reached end of updates. y = ' + str(y) + ' U_TIME - oe.start = ' + str(rf.updates[y][U_TIME] - oe.start))
 #                break;
             y = y + 1
-        logging.error('New episode (' + str(e) + '). Fragment skipped ' + str(x) + ' updates. New episode length is ' + str(y) + ' updates long. (' + str(rf.updates.__len__()) + ' left)')
-        logging.error('Episode updates span ' + str(rf.updates[0][U_TIME] - rf.updates[y][U_TIME]) + ' ms')
-        oe.asks_ob = rf.asks_ob
-        oe.bids_ob = rf.bids_ob
-        oe.updates = deque (itertools.islice (rf.updates, 0, y))
-        oe.ref_price = 0.5 * (oe.asks_ob.keys()[0] + oe.bids_ob.keys()[-1])
-        return (rf, oe)
+        logging.error('New episode (' + str(e) + '). Fragment skipped ' + str(x) + ' updates. New episode length is ' + str(y) + ' updates long. (' + str(f.updates.__len__()) + ' left)')
+        logging.error('Episode updates span ' + str(f.updates[0][U_TIME] - f.updates[y][U_TIME]) + ' ms')
+        e.asks_ob = f.asks_ob
+        e.bids_ob = f.bids_ob
+        e.updates = deque (itertools.islice (f.updates, 0, y))
+        e.ref_price = 0.5 * (e.asks_ob.keys()[0] + e.bids_ob.keys()[-1])
+        return (f, e)
 
 
 #        while rf.updates[0][U_TIME] - self.period > rf.start:
@@ -114,11 +130,11 @@ class RLExec:
             for a in range (ACTIONS):
 #                e = oe # deepcopy (oe)
                 price = self.action_price (a, oe, mode)
-                (c_im, remaining_vol) = self.immediate_cost(a, oe, mode, price, vol)
+                (remaining_vol, c_im) = self.immediate_cost(a, oe, mode, price, vol)
                 i_y = int(math.floor(self.vol_rez * remaining_vol / self.volume))
                 if i_y == 8:
                     i_y = 7
-                self.update_cost (t, i, i_y, a, c_im)
+                self.update_cost (mode, t, oe, i, i_y, a, c_im)
 
     def action_price (self, action, e, mode):   # This is adapted from gym env, and should probably be put in a separate place.
                                                 # Also, this is markedly different from the paper method of getting prices, which I don't understand.
@@ -168,26 +184,34 @@ class RLExec:
         transactions = []
 
         # Check for collisions between the old environment and the action (Offense)
-        i = 0
+#        i = 0  # Why are keys iterable but reversed keys are not? (don't answer me)
         if mode == MLU_BUY:
-            while price >= oe.asks_ob.keys()[i]:
-                if vol <= oe.asks_ob.values()[i]:
-                    transactions.append({'price': oe.asks_ob.keys()[i], 'amount': vol})
-                    return self.transactions_cost (transactions, mode, oe.ref_price)
+#            while price >= oe.asks_ob.keys()[i]:       # god I hate this language
+            for o in oe.asks_ob.keys():
+                if o < price:
+                    break
+#                if vol <= oe.asks_ob.values()[i]:
+                if vol <= oe.asks_ob[o]:
+                    transactions.append({'price': o, 'amount': vol, 'type': 'o'})
+                    return (0, self.transactions_cost (transactions, mode, oe.ref_price))
                 else:
-                    transactions.append({'price': oe.asks_ob.keys()[i], 'amount': oe.asks_ob.values()[i]})
-                    vol = vol - oe.asks_ob.values()[i]
-                i = i + 1   # Why does this god forsaken language not support for loops?!
+                    transactions.append({'price': o, 'amount': oe.asks_ob[o], 'type': 'o'})
+                    vol = vol - oe.asks_ob[o]
+#                i = i + 1   # Why does this god forsaken language not support for loops?!
         else:
-            while price <= oe.bids_ob.__reversed__()[i]:
+#            while price <= oe.bids_ob.__reversed__()[i]:
+            for o in oe.bids_ob.__reversed__():
+                if price > o:
+                    break
 #                if inventory <= self.f.ob_bids.values()[i]: # nope, use the hash
-                if vol <= oe.bids_ob.values()[-i-1]: # nope, use the hash
-                    transactions.append({'price': oe.bids_ob.__reversed__()[i], 'amount': vol})
-                    return self.transactions_cost (transactions, mode, oe.ref_price)
+#                if vol <= oe.bids_ob.values()[-i-1]: # nope, use the hash
+                if vol <= oe.bids_ob[o]:
+                    transactions.append({'price': o, 'amount': vol, 'type': 'o'})
+                    return (0, self.transactions_cost (transactions, mode, oe.ref_price))
                 else:
-                    transactions.append({'price': oe.bids_ob.__reversed__()[i], 'amount': oe.bids_ob.values()[-i-1]})
-                    vol = vol - oe.bids_ob.values()[-i-1]
-                i = i + 1   # Why does this god forsaken language not support for loops?!
+                    transactions.append({'price': o, 'amount': oe.bids_ob[o], 'type': 'o'})
+                    vol = vol - oe.bids_ob[o]
+#                i = i + 1   # Why does this god forsaken language not support for loops?!
 
         for u in oe.updates:                                            # Defence
             if u[U_UPT] == UPT_REMOVE:  # That can't collide
@@ -195,35 +219,67 @@ class RLExec:
             if ((mode == MLU_BUY and (u[U_ORT] == ORT_SELL or u[U_ORT] == ORT_ASK) and u[U_RATE] <= price) or
                 (mode == MLU_SELL and (u[U_ORT] == ORT_BUY  or u[U_ORT] == ORT_BID) and u[U_RATE] >= price)):
                 if vol <= u[U_VOL]:
-                    transactions.append({'price': price, 'amount': vol})
-                    return self.transactions_cost (transactions, mode, oe.ref_price)
+                    transactions.append({'price': price, 'amount': vol, 'type': 'd'})
+                    return (0, self.transactions_cost (transactions, mode, oe.ref_price))
                 else:
-                    transactions.append({'price': price, 'amount': u[U_VOL]})
+                    transactions.append({'price': price, 'amount': u[U_VOL], 'type': 'd'})
+                    vol = vol - u[U_VOL]
 
-        return self.transactions_cost (transactions, mode, oe.ref_price)
+        return (vol, self.transactions_cost (transactions, mode, oe.ref_price))
 
-    def transactions_cost (self, transactions, mode, ref_price):
+    def transactions_cost (self, transactions, mode, ref_price):    # TODO: <-- this will make more sense if we round the volume to the nearest voxel
         cost = 0
         for t in transactions:
-            cost = cost + (t['price'] - ref_price) * t['amount']
-        if mode == MLU_BUY:
-            return cost
-        else:
-            return -cost
+            if t['type'] == 'o':
+                cost = cost + (t['price'] - ref_price) * t['amount'] + 0.002 * t['price'] * t['amount']
+            elif t['type'] == 'd':
+                cost = cost + (t['price'] - ref_price) * t['amount'] + 0.001 * t['price'] * t['amount']
+            else:
+                assert False, 'transaction has no type'
+#        if mode == MLU_BUY:
+        return cost     # Why is the cost positive for both modes? Odd. TODO: Investigate
+#        else:
+#            return -cost
             
     def market_order_cost (self, oe):
-        cost = np.zeros((2, self.rez_vol + 1), float)
-        for t in range(self.rez_vol + 1):
-            vol = 
+        cost = np.zeros((2, self.vol_rez), float)
+        for t in range(self.vol_rez):
             for mode in (MLU_BUY, MLU_SELL):
-                if mode == MLY_BUY:
+                transactions = []
+                vol = self.volume * (t + 1) / self.vol_rez
+                if mode == MLU_BUY:
                     for o in oe.asks_ob.keys():
-                        if oe.asks_ob[o] 
+                        if oe.asks_ob[o] >= vol:
+                            transactions.append({'price': o, 'amount': vol, 'type': 'o'})
+                            break
+                        else:
+                            transactions.append({'price': o, 'amount': oe.asks_ob[o], 'type': 'o'})
+                            vol = vol - oe.asks_ob[o]
                 else:
-                    ob = oe.bids_ob
+                    for o in oe.bids_ob.__reversed__():
+                        if oe.bids_ob[o] >= vol:
+                            transactions.append({'price': o, 'amount': vol, 'type': 'o'})
+                            break
+                        else:
+                            transactions.append({'price': o, 'amount': oe.bids_ob[o], 'type': 'o'})
+                            vol = vol - oe.bids_ob[o]
+                cost[mode][t] = self.transactions_cost (transactions, mode, oe.ref_price)
+        logging.error('market order cost: ' + str(cost))
+        return cost
 
-    def update_cost (self, t, i, a, c_im):
-        pass
+#        self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
+    def update_cost (self, mode, t, oe, i, i_y, a, c_im):
+        if t == self.time_rez - 1:
+            prev_cost = oe.mo_cost[mode][i_y]
+        else:
+#            prev_cost = self.q[mode][t+1][i_y][np.argmax (self.q[mode][t+1][i_y])]  # TODO: calc offline
+            prev_cost = self.q[mode][t+1][i_y][self.optimal_actions[mode][t+1][i_y]]  # TODO: calc offline
+        self.q[mode][t][i][a] = self.q[mode][t][i][a] * self.gen / (self.gen + 1) + (prev_cost + c_im) * (1 / (self.gen + 1))
+
+    def calc_optimal_actions (self, t):
+        for mode in (MLU_BUY, MLU_SELL):
+            for i in range (self.vol_rez):
+                self.optimal_actions[mode][t][i] = np.argmax (self.q[mode][t][i])
 
 if __name__ == '__main__':
     RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 10000000, 8, 1.6).train_all ()
