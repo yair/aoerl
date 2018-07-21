@@ -40,7 +40,7 @@ class RLExec:
         self.fragdir = join (basefragdir, market)
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*reversed.pickle')])                 # reversed
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739_reversed.pickle')])   # reversed
-#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # untested
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default
         self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])
         self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
         self.elen = float(self.period) / self.time_rez
@@ -64,7 +64,7 @@ class RLExec:
     def train_fragment (self, i, f):
         episodes = int(math.floor((f.end - f.start) / self.elen))
         f.orig_start = f.start
-        logging.error('This fragment contains ' + str(episodes) + ' episodes of ' + str(self.elen) + 'ms')
+#        logging.error('This fragment contains ' + str(episodes) + ' episodes of ' + str(self.elen) + 'ms')
         # TODO: Drop first episode
 #        for e in range (episodes - 1, -1, -1):      # reversed
         for eid in range (episodes):
@@ -75,7 +75,7 @@ class RLExec:
             self.train_episode (i, e, MLU_BUY)
             self.train_episode (i, e, MLU_SELL)
             c = time.time()
-            logging.error('fetching episode took ' + str (b-a) + 's. Training took ' + str (c-b) + 's')
+#            logging.error('fetching episode took ' + str (b-a) + 's. Training took ' + str (c-b) + 's')
             self.gen = self.gen + 1
 #            self.train_episode (i, oe, MLU_SELL)
 
@@ -96,8 +96,8 @@ class RLExec:
 #                logging.error('reached end of updates. y = ' + str(y) + ' U_TIME - oe.start = ' + str(rf.updates[y][U_TIME] - oe.start))
 #                break;
             y = y + 1
-        logging.error('New episode (' + str(e) + '). Fragment skipped ' + str(x) + ' updates. New episode length is ' + str(y) + ' updates long. (' + str(f.updates.__len__()) + ' left)')
-        logging.error('Episode updates span ' + str(f.updates[0][U_TIME] - f.updates[y][U_TIME]) + ' ms')
+#        logging.error('New episode (' + str(e) + '). Fragment skipped ' + str(x) + ' updates. New episode length is ' + str(y) + ' updates long. (' + str(f.updates.__len__()) + ' left)')
+#        logging.error('Episode updates span ' + str(f.updates[y][U_TIME] - f.updates[0][U_TIME])  + ' ms')
         e.asks_ob = f.asks_ob
         e.bids_ob = f.bids_ob
         e.updates = deque (itertools.islice (f.updates, 0, y))
@@ -124,20 +124,24 @@ class RLExec:
     """
     def train_episode (self, t, oe, mode):
         for i in range (self.vol_rez):
-            vol = self.volume * float(i + 1) / self.vol_rez
+#            vol = self.volume * float(i + 1) / self.vol_rez
+            logging.debug('ref_price = ' + str(oe.ref_price))
             for a in range (ACTIONS):
+                vol = self.volume * float(i + 1) / self.vol_rez
 #                e = oe # deepcopy (oe)
                 price = self.action_price (a, oe, mode)
                 (remaining_vol, c_im) = self.immediate_cost(a, oe, mode, price, vol)
                 i_y = int(math.floor(self.vol_rez * remaining_vol / self.volume))
                 if i_y == 8:
                     i_y = 7
+                logging.debug('mode='+str(mode)+' t='+str(t)+' i='+str(i)+' vol='+str(vol)+' a='+str(a)+' price='+str(price)+' rem='+str(remaining_vol)+' c_im='+str(c_im)+' i_y='+str(i_y))
                 self.update_cost (mode, t, oe, i, i_y, a, c_im)
 
     def action_price (self, action, e, mode):   # This is adapted from gym env, and should probably be put in a separate place.
                                                 # Also, this is markedly different from the paper method of getting prices, which I don't understand.
         if action <= ALU_00625AV:
             no_deeper_than = self.average_volume * 2. ** (-action)
+            logging.debug ('no_deeper_than = ' + str(no_deeper_than))
             v = 0
             volume = 0
             i = 0
@@ -150,6 +154,7 @@ class RLExec:
             for price in our_obkv:
                 i = i + 1
                 volume = our_obd[price]
+                logging.debug(str(price) + ' - v + volume = ' + str(v) + ' + ' + str(volume))
                 if v + volume > no_deeper_than:
                     if mode == MLU_BUY:
                         return price + PRICE_RESOLUTION
@@ -165,6 +170,7 @@ class RLExec:
         else:
             our0 = e.asks_ob.keys()[0]
             their0 = e.bids_ob.keys()[-1]
+        logging.debug('our0 = ' + str(our0) + ' their0 = ' + str(their0))
         if action == ALU_NEAR:
             if mode == MLU_BUY:
                 return our0 + PRICE_RESOLUTION
@@ -180,8 +186,8 @@ class RLExec:
 
     def immediate_cost (self, a, oe, mode, price, vol):     # adapted from market_emulator.episode
         transactions = []
-
-        # Check for collisions between the old environment and the action (Offense)
+        """                                                                                      Do we even have offense? Their is 0 lag and all our actions are def
+        # Check for collisions between the old environment and the action (Offense)              (also broken)
 #        i = 0  # Why are keys iterable but reversed keys are not? (don't answer me)
         if mode == MLU_BUY:
 #            while price >= oe.asks_ob.keys()[i]:       # god I hate this language
@@ -191,9 +197,11 @@ class RLExec:
 #                if vol <= oe.asks_ob.values()[i]:
                 if vol <= oe.asks_ob[o]:
                     transactions.append({'price': o, 'amount': vol, 'type': 'o'})
+                    logging.error('Bought all: ' + str(transactions[-1]))
                     return (0, self.transactions_cost (transactions, mode, oe.ref_price))
                 else:
                     transactions.append({'price': o, 'amount': oe.asks_ob[o], 'type': 'o'})
+                    logging.error('Bought some: ' + str(transactions[-1]))
                     vol = vol - oe.asks_ob[o]
 #                i = i + 1   # Why does this god forsaken language not support for loops?!
         else:
@@ -205,12 +213,14 @@ class RLExec:
 #                if vol <= oe.bids_ob.values()[-i-1]: # nope, use the hash
                 if vol <= oe.bids_ob[o]:
                     transactions.append({'price': o, 'amount': vol, 'type': 'o'})
+                    logging.error('Sold all: ' + str(transactions[-1]))
                     return (0, self.transactions_cost (transactions, mode, oe.ref_price))
                 else:
                     transactions.append({'price': o, 'amount': oe.bids_ob[o], 'type': 'o'})
+                    logging.error('Sold some: ' + str(transactions[-1]))
                     vol = vol - oe.bids_ob[o]
 #                i = i + 1   # Why does this god forsaken language not support for loops?!
-
+        """
         for u in oe.updates:                                            # Defence
             if u[U_UPT] == UPT_REMOVE:  # That can't collide
                 continue
@@ -218,9 +228,11 @@ class RLExec:
                 (mode == MLU_SELL and (u[U_ORT] == ORT_BUY  or u[U_ORT] == ORT_BID) and u[U_RATE] >= price)):
                 if vol <= u[U_VOL]:
                     transactions.append({'price': price, 'amount': vol, 'type': 'd'})
+                    logging.debug('Transacted all: ' + str(transactions[-1]))
                     return (0, self.transactions_cost (transactions, mode, oe.ref_price))
                 else:
                     transactions.append({'price': price, 'amount': u[U_VOL], 'type': 'd'})
+                    logging.debug('Transacted some: ' + str(transactions[-1]))
                     vol = vol - u[U_VOL]
 
         return (vol, self.transactions_cost (transactions, mode, oe.ref_price))
@@ -262,7 +274,7 @@ class RLExec:
                             transactions.append({'price': o, 'amount': oe.bids_ob[o], 'type': 'o'})
                             vol = vol - oe.bids_ob[o]
                 cost[mode][t] = self.transactions_cost (transactions, mode, oe.ref_price)
-        logging.error('market order cost: ' + str(cost))
+#        logging.error('market order cost: ' + str(cost))
         return cost
 
 #        self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
@@ -284,11 +296,11 @@ class RLExec:
         if not os.path.exists(dumpdir):
             os.makedirs(dumpdir)
         with open (join (dumpdir, 'policy.json'), 'w') as fh:
-            json.dump (self.optimal_actions.tolist(), fh)
+            json.dump (self.optimal_actions.tolist(), fh, indent=None)
         with open (join (dumpdir, 'q.json'), 'w') as fh:
-            json.dump (self.q.tolist(), fh)
+            json.dump (self.q.tolist(), fh, indent=2)
         with open (join (dumpdir, 'fragments.json'), 'w') as fh:
-            json.dump (self.frag_fns, fh)
+            json.dump (self.frag_fns, fh, indent=2)
 
 if __name__ == '__main__':
-    RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 10000000, 8, 1.6).train_all ()
+    RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 100000000, 8, 160000000).train_all ()
