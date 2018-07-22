@@ -34,8 +34,8 @@ def plot_policy (pi):
     zpos = np.zeros(64)
     dx = np.ones(64) * 0.8
     dy = np.ones(64) * 0.8
-#    dz = pi_sell.flatten()
-    dz = q_buy[7].flatten()
+    dz = pi_buy.flatten()
+#    dz = q_buy[7].flatten()
 
     ax1.bar3d(xpos, ypos, zpos, dx, dy, dz, color='#00ceaa')
     ax1.xlabel = 'blah'

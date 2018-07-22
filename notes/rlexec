@@ -14,3 +14,24 @@ a - positive or negative. 0 is the current ask (for selling). a > 0 is crossing 
 
 Data structure --
 We can't use any chart data for this, as we can't tell if a wick had enough volume to fill our bids completely or not. Since we will be running time backwards, the first thing to do is to build a reversed update stream, and keeping the final order books. Ick.
+
+Volume quantization --
+We are probably encountering quantization errors due to the continuous nature of volume actually transacted, which might have a larger effect than relatively small cost differences between different policy decisions. This needs to be done carefully.
+
+Ok. The volume up for trading is (i+1)*V/I - there is really no need to trade zero volume.
+Let the volume traded be v, and the remining volume is ((i+1)*V/I - v).
+Question is what i_y should be. Do we want to select a lower volume bracket on the next time step or not. This, I think, should be according to the nearest...
+Just a sec, there's a problem here. Let's say i = 0 - we can trade our V/I volume again and again. Crap. The above formula can't be right.
+We need something else. What we need might be a I+1 column table, or maybe solve this programmatically somehow with the existing table.
+See, if i is always interpreted as [1, I], we can just return 0 for cost and volume and everything if it reches 0.
+This will be also fine for inference, if we just always round up the inventory. Fine. From the top.
+i = [0, I-1] in reality, so we can refer to indices of our table properly.
+up for trading - (i+1)*V/I <= [V/I, V]
+transacted volume === v    <= [0, (i+1)*V/I]
+remaining volume ((i+1)*V/I - v)  <= [0, (i+1)*V/I]
+i_y = int(round(((i+1)*V/I - v) * (I/V))) = int(round( i + 1 - I*v/V)) <= [0, i+1] No! That's too wide a range! Ah! if 0, we don't i_y at all, because existing cost is 0!
+i_y = int(round(((i+1)*V/I - v) * (I/V))) - 1 = int(round( i + 1 - I*v/V)) - 1 <= [-1, i] Yes! And if i_y=-1, take 0 for the cost of the remaining stuffs.
+Corrected transacted volume = (i - i_y) * V/I
+Correct cost = cost * ((i - i_y) * V/I) / v ok!
+Corrected cost = cost * corrected_trans_vol / transvol
+

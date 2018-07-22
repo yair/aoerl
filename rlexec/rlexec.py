@@ -131,9 +131,18 @@ class RLExec:
 #                e = oe # deepcopy (oe)
                 price = self.action_price (a, oe, mode)
                 (remaining_vol, c_im) = self.immediate_cost(a, oe, mode, price, vol)
-                i_y = int(math.floor(self.vol_rez * remaining_vol / self.volume))
-                if i_y == 8:
-                    i_y = 7
+#                i_y = int(math.floor(self.vol_rez * remaining_vol / self.volume))
+#                if i_y == 8:
+#                    i_y = 7
+                i_y = int (round (self.vol_rez * remaining_vol / self.volume)) - 1  # <= [-1, i]. -1 means no further costs
+                # correct cost quantization error
+                if i_y != i:
+                    c_im = c_im * ((i - i_y) * self.volume / self.vol_rez) / (vol - remaining_vol)
+#                transacted_vol = vol - remaining_vol
+#                if transacted_vol > 0 and remaining_vol > 0:
+#                    q_trans_vol = (i + 1 - i_y) * (self.volume / self.vol_rez)
+#                    assert q_trans_vol > transacted_vol, 'q_trans_vol = ' + str(q_trans_vol) + ' transacted_vol = ' + str(transacted_vol) + ' mode='+str(mode)+' t='+str(t)+' i='+str(i)+' vol='+str(vol)+' a='+str(a)+' price='+str(price)+' rem='+str(remaining_vol)+' c_im='+str(c_im)+' i_y='+str(i_y)
+#                    c_im = c_im * (q_trans_vol / transacted_vol)
                 logging.debug('mode='+str(mode)+' t='+str(t)+' i='+str(i)+' vol='+str(vol)+' a='+str(a)+' price='+str(price)+' rem='+str(remaining_vol)+' c_im='+str(c_im)+' i_y='+str(i_y))
                 self.update_cost (mode, t, oe, i, i_y, a, c_im)
 
@@ -283,7 +292,10 @@ class RLExec:
             prev_cost = oe.mo_cost[mode][i_y]
         else:
 #            prev_cost = self.q[mode][t+1][i_y][np.argmax (self.q[mode][t+1][i_y])]  # TODO: calc offline
-            prev_cost = self.q[mode][t+1][i_y][self.optimal_actions[mode][t+1][i_y]]  # TODO: calc offline
+            if i_y < 0:     # volume depleted, no further costs
+                prev_cost = 0
+            else:
+                prev_cost = self.q[mode][t+1][i_y][self.optimal_actions[mode][t+1][i_y]]  # TODO: calc offline
         self.q[mode][t][i][a] = self.q[mode][t][i][a] * self.gen / (self.gen + 1) + (prev_cost + c_im) * (1 / (self.gen + 1))
 
     def calc_optimal_actions (self, t):
