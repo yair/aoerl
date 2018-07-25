@@ -13,7 +13,7 @@ import math
 from market_emulator.fragment import *
 
 #logging.basicConfig(level=logging.DEBUG)
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.WARNING)
 
 ACTIONS = 8
 
@@ -37,16 +37,18 @@ class RLExec:
     def __init__ (self, basefragdir, market, period, time_rez, volume, vol_rez, average_vol):
         self.period = period        # in ms
         self.time_rez = time_rez    # number of time intervals
-        self.volume = volume        # in satoshi
+        self.volume = volume        # Amount to transact, in satoshi
         self.vol_rez = vol_rez      # number of volume intervals
         self.fragdir = join (basefragdir, market)
         self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default
-#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])             # 607 ep
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530224638648.pickle')])             # 14369 ep
         self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
         self.elen = float(self.period) / self.time_rez
         self.gen = 0. # Global Episode Number, for normalization
-        self.average_volume = average_vol
+        self.average_volume = average_vol   # Average volume per period in this market
         self.optimal_actions = np.zeros((2, time_rez, vol_rez), dtype=int)
+        self.market = market
 
     def train_all (self):
         for i in range(self.time_rez - 1, -1, -1):  # The only time that _should_ be reversed is the internal q-table intervals
@@ -63,17 +65,23 @@ class RLExec:
     def train_fragment (self, i, f):
         episodes = int(math.floor((f.end - f.start) / self.elen))
         f.orig_start = f.start
-        logging.info('This fragment contains ' + str(episodes) + ' episodes of ' + str(self.elen) + 'ms')
+        logging.warning('This fragment contains ' + str(episodes) + ' episodes of ' + str(self.elen) + 'ms')
+        gettime = motime = traintime = 0
+        fen = self.gen
         for eid in range (episodes):
             a = time.time()
             (f, e) = self.get_episode (f, eid)
-            e.mo_cost = self.market_order_cost (e)
             b = time.time()
+            e.mo_cost = self.market_order_cost (e)
+            c = time.time()
             self.train_episode (i, e, MLU_BUY)
             self.train_episode (i, e, MLU_SELL)
-            c = time.time()
-            logging.info('fetching episode took ' + str (b-a) + 's. Training took ' + str (c-b) + 's')
+            d = time.time()
             self.gen = self.gen + 1
+            gettime = gettime + b - a
+            motime = motime + c - b
+            traintime = traintime + d - c
+        logging.warning('fetching episode took on avg ' + str (1000*gettime/(self.gen-fen)) + 'ms. Moing took ' + str(1000*motime/(self.gen-fen)) + 'ms. Training took ' + str (1000*traintime/(self.gen-fen)) + 'ms.')
 
     def get_episode (self, f, eid):
         x = 0
@@ -90,9 +98,40 @@ class RLExec:
         logging.info('Episode updates span ' + str(f.updates[y][U_TIME] - f.updates[0][U_TIME])  + ' ms')
         e.asks_ob = f.asks_ob
         e.bids_ob = f.bids_ob
-        e.updates = deque (itertools.islice (f.updates, 0, y))
         e.ref_price = 0.5 * (e.asks_ob.keys()[0] + e.bids_ob.keys()[-1])
+        e.updates = deque (itertools.islice (f.updates, 0, y))
+#        e.updates = self.prune (e) # Can't understand why it warps the results
         return (f, e)
+
+    def prune (self, e):
+        v = 0
+        for p in e.bids_ob.__reversed__():
+#            if v + e.bids_ob[p] > self.average_volume + self.volume:
+            if v > self.average_volume + self.volume:
+                minbid = p
+                break
+            v = v + e.bids_ob[p]
+        v = 0
+        for p in e.asks_ob.keys():
+#            if v + e.asks_ob[p] > self.average_volume + self.volume:
+            if v > self.average_volume + self.volume:
+                maxask = p
+                break
+            v = v + e.asks_ob[p]
+        logging.info('Pruning updates outside the range [' + str(minbid) + ' -(' + str(e.ref_price) + ')- ' + str(maxask) + ']')
+        r = deque()
+
+        for u in e.updates:
+            if (u[U_UPT] == UPT_REMOVE or
+#                    (u[U_RATE] > maxask and u[U_ORT] == ORT_ASK) or
+#                    (u[U_RATE] < minbid and u[U_ORT] == ORT_BID)):
+                    ((u[U_ORT] == ORT_ASK or u[U_ORT] == ORT_BID) and
+                     (u[U_RATE] > maxask or u[U_RATE] < minbid))):
+                logging.debug('pruning update ' + str(u))
+                continue
+            r.append(u)
+        logging.info ('Episode update stream reduced from ' + str(len(e.updates)) + ' to ' + str(len(r)))
+        return r  
 
     """
     Optimal_strategy (V, H, T, I, L) 
@@ -298,7 +337,7 @@ class RLExec:
                 self.optimal_actions[mode][t][i] = np.argmin (self.q[mode][t][i])
 
     def dump_results (self):
-        dumpdir = join ('../rlexec_output/', str(int(time.time())))
+        dumpdir = join (join ('../rlexec_output/', str(int(time.time()))), self.market)
         if not os.path.exists(dumpdir):
             os.makedirs(dumpdir)
         with open (join (dumpdir, 'policy.json'), 'w') as fh:

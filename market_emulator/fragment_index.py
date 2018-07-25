@@ -25,7 +25,9 @@ class FragmentIndex:
             self.loaded = False
 
     def add_frag (self, frag):
-        assert frag.start not in self.index
+#        assert frag.start not in self.index
+        if frag.start in self.index:
+            del self.index[frag.start]
         self.index[frag.start] = frag.end
 
     def save (self):

@@ -35,3 +35,16 @@ Corrected transacted volume = (i - i_y) * V/I
 Correct cost = cost * ((i - i_y) * V/I) / v ok!
 Corrected cost = cost * corrected_trans_vol / transvol
 
+update pruning --
+We can remove from the update stream anything which relates to things outside ~twice the volume range. This might help because we go over the stream 2*A*I times.
+Better would be to run the updates once to generate a fast data structure, that given a price quickly retrieves the amount of volume traded up to it, but I'm not sure how to do it without errors.
+Unpruned time: 
+real    26m22.686s
+user    26m5.689s
+sys     0m1.443s
+Pruning is rather vicious, removing 90~99% of all updates. :o
+After pruning:
+real    16m32.727s
+user    16m24.292s
+sys     0m1.032s
+But it changed the results. Prolly a bug.
