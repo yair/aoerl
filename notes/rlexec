@@ -48,3 +48,15 @@ real    16m32.727s
 user    16m24.292s
 sys     0m1.032s
 But it changed the results. Prolly a bug.
+
+units --
+All prices are in bsatoshis per whole alts
+Volumes outside of episodes are in bsatoshis. Inside episodes they are in altsatoshis.
+
+todo --
+- bugfix - make sure actions don't overstep into their book. That can happen to _all_.
+- bugfix - scale volumes by ref_price (except for USDT) on each episode.
+- usdt-btc - Do we need anything new? Let's try running it. At least proper volavg and multiply volume by price.
+  Just a sec. What price? Doesn't really matter as long as it's constant throughout the run. Really? Hmmm... Isn't it better to invert everything?
+- extract trading cost. How do we do that? Just by taking 0-time full-volume q optimal value? Can we really assume that the midway point is a good reference?
+- reimplement trading bot

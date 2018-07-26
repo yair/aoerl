@@ -37,16 +37,18 @@ class RLExec:
     def __init__ (self, basefragdir, market, period, time_rez, volume, vol_rez, average_vol):
         self.period = period        # in ms
         self.time_rez = time_rez    # number of time intervals
-        self.volume = volume        # Amount to transact, in satoshi
+        self.volume = volume        # Amount to transact, in bitcoin satoshis
         self.vol_rez = vol_rez      # number of volume intervals
         self.fragdir = join (basefragdir, market)
-        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default
-#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])             # 607 ep
-#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530224638648.pickle')])             # 14369 ep
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default - all
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])             # 607 ep eth
+        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530224638648.pickle')])             # 14369 ep eth
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1528097393910.pickle')])             # 3842 ep usdt
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1528097393690.pickle')])             # 3842 ep doge
         self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
         self.elen = float(self.period) / self.time_rez
         self.gen = 0. # Global Episode Number, for normalization
-        self.average_volume = average_vol   # Average volume per period in this market
+        self.average_volume = average_vol   # Average volume per period in this market, in bitcoin satoshis
         self.optimal_actions = np.zeros((2, time_rez, vol_rez), dtype=int)
         self.market = market
 
@@ -65,12 +67,14 @@ class RLExec:
     def train_fragment (self, i, f):
         episodes = int(math.floor((f.end - f.start) / self.elen))
         f.orig_start = f.start
-        logging.warning('This fragment contains ' + str(episodes) + ' episodes of ' + str(self.elen) + 'ms')
+        logging.warning('This fragment (' + str(f.start) + ') contains ' + str(episodes) + ' episodes of ' + str(self.elen) + 'ms')
         gettime = motime = traintime = 0
         fen = self.gen
         for eid in range (episodes):
             a = time.time()
             (f, e) = self.get_episode (f, eid)
+            e.volume = 100000000 * self.volume / e.ref_price    # e.volume is in alt satoshis (ref_price is in whole alts per bsatoshis)
+            e.average_volume = 100000000 * self.average_volume / e.ref_price
             b = time.time()
             e.mo_cost = self.market_order_cost (e)
             c = time.time()
@@ -149,14 +153,16 @@ class RLExec:
     """
     def train_episode (self, t, oe, mode):
         for i in range (self.vol_rez):
-            logging.debug('ref_price = ' + str(oe.ref_price))
+            logging.debug('ref_price = ' + str(oe.ref_price) + 'bsat')
             for a in range (ACTIONS):
-                vol = self.volume * float(i + 1) / self.vol_rez
+#                vol = self.volume * float(i + 1) / self.vol_rez
+                vol = oe.volume * float(i + 1) / self.vol_rez
                 price = self.action_price (a, oe, mode)
                 (remaining_vol, c_im) = self.immediate_cost(a, oe, mode, price, vol)
-                i_y = int (round (self.vol_rez * remaining_vol / self.volume)) - 1  # <= [-1, i]. -1 means no further costs
+#                i_y = int (round (self.vol_rez * remaining_vol / self.volume)) - 1  # <= [-1, i]. -1 means no further costs
+                i_y = int (round (self.vol_rez * remaining_vol / oe.volume)) - 1  # <= [-1, i]. -1 means no further costs
                 # correct cost quantization error
-                logging.debug('mode='+str(mode)+' t='+str(t)+' i='+str(i)+' vol='+str(vol)+' a='+str(a)+' price='+str(price)+' rem='+str(remaining_vol)+' c_im='+str(c_im)+' i_y='+str(i_y))
+                logging.debug('mode='+str(mode)+' t='+str(t)+' i='+str(i)+' vol='+str(vol)+'altsat a='+str(a)+' price='+str(price)+'bsat rem='+str(remaining_vol)+'altsat c_im='+str(c_im)+'bp i_y='+str(i_y))
                 """
                 if i_y == i:    # Trading below threshold (volume < half resolution)
                     logging.debug ('c_im = ' + str(c_im) + ' ==> 0 (i_y == i)')
@@ -173,8 +179,9 @@ class RLExec:
     def action_price (self, action, e, mode):   # This is adapted from gym env, and should probably be put in a separate place.
                                                 # Also, this is markedly different from the paper method of getting prices, which I don't understand.
         if action <= ALU_00625AV:
-            no_deeper_than = self.average_volume * 2. ** (-action)
-            logging.debug ('no_deeper_than = ' + str(no_deeper_than))
+#            no_deeper_than = self.average_volume * 2. ** (-action)
+            no_deeper_than = e.average_volume * 2. ** (-action)
+            logging.debug ('no_deeper_than = ' + str(no_deeper_than) + 'altsat')
             v = 0
             volume = 0
             i = 0
@@ -187,12 +194,18 @@ class RLExec:
             for price in our_obkv:
                 i = i + 1
                 volume = our_obd[price]
-                logging.debug('price = ' +str(price) + ' => v + volume = ' + str(v) + ' + ' + str(volume))
+                logging.debug('price = ' +str(price) + 'bsat => v + volume = ' + str(v) + 'altsat + ' + str(volume) + 'altsat')
                 if v + volume > no_deeper_than:
                     if mode == MLU_BUY:
-                        return price + PRICE_RESOLUTION
+                        if price + PRICE_RESOLUTION >= e.asks_ob.keys()[0]: # Don't overstep into their too soon
+                            return price
+                        else:
+                            return price + PRICE_RESOLUTION
                     else:
-                        return price - PRICE_RESOLUTION
+                        if price - PRICE_RESOLUTION < e.bids_ob.keys()[-1]:
+                            return price
+                        else:
+                            return price - PRICE_RESOLUTION
                 else:
                     v = v + volume
             logging.error('length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations')
@@ -203,14 +216,29 @@ class RLExec:
         else:
             our0 = e.asks_ob.keys()[0]
             their0 = e.bids_ob.keys()[-1]
-        logging.debug('our0 = ' + str(our0) + ' their0 = ' + str(their0))
+        logging.debug('our0 = ' + str(our0) + 'bsat their0 = ' + str(their0) + 'bsat')
         if action == ALU_NEAR:
             if mode == MLU_BUY:
-                return our0 + PRICE_RESOLUTION
+                if our0 + PRICE_RESOLUTION >= their0:
+                    return our0
+                else:
+                    return our0 + PRICE_RESOLUTION
             else:
-                return our0 - PRICE_RESOLUTION
+                if our0 - PRICE_RESOLUTION <= their0:
+                    return our0
+                else:
+                    return our0 - PRICE_RESOLUTION
         if action == ALU_MID:
-            return (our0 + their0) // 2
+            if mode == MLU_BUY:
+                if (our0 + their0) // 2 >= their0:
+                    return their0 - PRICE_RESOLUTION
+                else:
+                    return (our0 + their0) // 2
+            else:
+                if (our0 + their0) // 2 <= their0:
+                    return their0 + PRICE_RESOLUTION
+                else:
+                    return (our0 + their0) // 2
         if action == ALU_FAR:
             if mode == MLU_BUY:
                 return their0 - PRICE_RESOLUTION
@@ -262,15 +290,15 @@ class RLExec:
                 if vol <= u[U_VOL]:
                     transactions.append({'price': price, 'amount': vol, 'type': 'd'})
                     logging.debug('Transacted all: ' + str(transactions[-1]))
-                    return (0, self.transactions_cost (transactions, mode, oe.ref_price))
+                    return (0, self.transactions_cost (transactions, mode, oe.ref_price, oe))
                 else:
                     transactions.append({'price': price, 'amount': u[U_VOL], 'type': 'd'})
                     logging.debug('Transacted some: ' + str(transactions[-1]))
                     vol = vol - u[U_VOL]
 
-        return (vol, self.transactions_cost (transactions, mode, oe.ref_price))
+        return (vol, self.transactions_cost (transactions, mode, oe.ref_price, oe))
 
-    def transactions_cost (self, transactions, mode, ref_price):
+    def transactions_cost (self, transactions, mode, ref_price, oe):
         cost = 0
         for t in transactions:
             if mode == MLU_BUY:
@@ -287,7 +315,8 @@ class RLExec:
                     cost = cost - (t['price'] - ref_price) * t['amount'] + 0.001 * t['price'] * t['amount']
                 else:
                     assert False, 'transaction has no type' + str(transactions)
-        cost = cost * 10000. / (ref_price * self.volume)
+#        cost = cost * 10000. / (ref_price * self.volume)
+        cost = cost * 10000. / (ref_price * oe.volume)
         return cost
             
     def market_order_cost (self, oe):
@@ -295,7 +324,8 @@ class RLExec:
         for t in range(self.vol_rez):
             for mode in (MLU_BUY, MLU_SELL):
                 transactions = []
-                vol = self.volume * (t + 1) / self.vol_rez
+#                vol = self.volume * (t + 1) / self.vol_rez
+                vol = oe.volume * (t + 1) / self.vol_rez
                 if mode == MLU_BUY:
                     for o in oe.asks_ob.keys():
                         if oe.asks_ob[o] >= vol:
@@ -312,8 +342,8 @@ class RLExec:
                         else:
                             transactions.append({'price': o, 'amount': oe.bids_ob[o], 'type': 'o'})
                             vol = vol - oe.bids_ob[o]
-                cost[mode][t] = self.transactions_cost (transactions, mode, oe.ref_price)
-        logging.debug('market order cost: ' + str(cost))
+                cost[mode][t] = self.transactions_cost (transactions, mode, oe.ref_price, oe)
+        logging.debug('market order cost: ' + str(cost) + 'bp')
         return cost
 
     def update_cost (self, mode, t, oe, i, i_y, a, c_im):
@@ -327,7 +357,7 @@ class RLExec:
                 prev_cost = 0
             else:
                 prev_cost = self.q[mode][t+1][i_y][self.optimal_actions[mode][t+1][i_y]]
-        logging.debug ('tot_cost = prev_cost + c_im = ' + str(prev_cost) + ' + ' + str(c_im) + ' = ' + str(prev_cost + c_im))
+        logging.debug ('tot_cost = prev_cost + c_im = ' + str(prev_cost) + ' + ' + str(c_im) + ' = ' + str(prev_cost + c_im) + 'bp')
         self.q[mode][t][i][a] = self.q[mode][t][i][a] * self.gen / (self.gen + 1) + (prev_cost + c_im) * (1 / (self.gen + 1))
 
     def calc_optimal_actions (self, t):
@@ -349,3 +379,6 @@ class RLExec:
 
 if __name__ == '__main__':
     RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 10000000, 8, 160000000).train_all ()
+#    RLExec ('../fragments/', 'USDT_BTC', 180000, 8, 10000000, 8, 312500000).train_all ()
+#    RLExec ('../fragments/', 'USDT_BTC', 180000, 8, 10000000, 8, 112500000).train_all ()
+#    RLExec ('../fragments/', 'BTC_DOGE', 180000, 8, 10000000, 8, 18541666).train_all ()
