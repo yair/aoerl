@@ -37,14 +37,14 @@ MLU_SELL = 1
 PRICE_RESOLUTION = 1    # satoshi (whatabout BTC_USD?)
 
 class RLExec:
-    def __init__ (self, basefragdir, market, period, time_rez, volume, vol_rez, average_vol):
+    def __init__ (self, basefragdir, market, period, time_rez, volume, vol_rez, average_vol, label=None):
         self.period = period        # in ms
         self.time_rez = time_rez    # number of time intervals
         self.volume = volume        # Amount to transact, in bitcoin satoshis
         self.vol_rez = vol_rez      # number of volume intervals
         self.fragdir = join (basefragdir, market)
         self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default - all
-        self.frag_limit = 3
+        self.frag_limit = 3         # train on partial data of any coin
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])             # 607 ep eth
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530224638648.pickle')])             # 14369 ep eth
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1528097393910.pickle')])             # 3842 ep usdt
@@ -52,9 +52,10 @@ class RLExec:
         self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
         self.elen = float(self.period) / self.time_rez
         self.gen = 0. # Global Episode Number, for normalization
-        self.average_volume = average_vol   # Average volume per period in this market, in bitcoin satoshis
+        self.average_volume = average_vol   # Average volume per period in this market, in bitcoin satoshis (actually a lot less, the amount of ob penetration)
         self.optimal_actions = np.zeros((2, time_rez, vol_rez), dtype=int)
         self.market = market
+        self.label = label
 
     def train_all (self):
         for i in range(self.time_rez - 1, -1, -1):  # The only time that _should_ be reversed is the internal q-table intervals
@@ -401,7 +402,10 @@ class RLExec:
                 self.optimal_actions[mode][t][i] = np.argmin (self.q[mode][t][i])
 
     def dump_results (self):
-        dumpdir = join (join ('../rlexec_output/', str(int(time.time()))), self.market)
+        if self.label == None:
+            self.label = str(int(time.time()))
+#        dumpdir = join (join ('../rlexec_output/', str(int(time.time()))), self.market)
+        dumpdir = join (join ('../rlexec_output/', self.label), self.market)
         if not os.path.exists(dumpdir):
             os.makedirs(dumpdir)
         with open (join (dumpdir, 'policy.json'), 'w') as fh:
@@ -466,16 +470,17 @@ def train_all_coins_threadedly ():
 """
 
 def train_coin_process (pair):
-    RLExec ('../fragments/', pair[0], 180000, 8, 10000000, 8, pair[1]/30).train_all ()
+    RLExec ('../fragments/', pair[0], 180000, 8, 10000000, 8, pair[1]/30, pair[2]).train_all ()
 
 def train_all_coins_processly ():
     noof_threads = 7
+    label = str(int(time.time()))
     with open ('volumes.json', 'r') as fh:
         volumes = json.load (fh)
     logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
     p = Pool (noof_threads)
     logging.error('orig volumes: ' + str(volumes))
-    v1 = [[x, volumes[x]] for x in volumes.keys()]
+    v1 = [[x, volumes[x], label] for x in volumes.keys()]
     logging.error('listed volumes: ' + str(v1))
     p.map(train_coin_process, v1)
 
