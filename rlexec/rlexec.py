@@ -43,11 +43,11 @@ class RLExec:
         self.volume = volume        # Amount to transact, in bitcoin satoshis
         self.vol_rez = vol_rez      # number of volume intervals
         self.fragdir = join (basefragdir, market)
-#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default - all
+        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default - all
         self.frag_limit = 3
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])             # 607 ep eth
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530224638648.pickle')])             # 14369 ep eth
-        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1528097393910.pickle')])             # 3842 ep usdt
+#        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1528097393910.pickle')])             # 3842 ep usdt
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1528097393690.pickle')])             # 3842 ep doge
         self.q = np.zeros((2, time_rez, vol_rez, ACTIONS), dtype=float)
         self.elen = float(self.period) / self.time_rez
@@ -64,6 +64,7 @@ class RLExec:
             self.gen = 0
             fnu = 0
             for fn in self.frag_fns:
+                assert os.path.exists(fn)
                 self.train_fragment (i, Fragment (fn))
                 if self.frag_limit > 0:
                     fnu = fnu + 1
@@ -462,7 +463,21 @@ def train_all_coins_threadedly ():
 #        TH = THread (volumes)
 #        TH.__init__()
 #        TH.start() #start_new_thread (train_coins_thread, volumes)
-"""        
+"""
+
+def train_coin_process (pair):
+    RLExec ('../fragments/', pair[0], 180000, 8, 10000000, 8, pair[1]/30).train_all ()
+
+def train_all_coins_processly ():
+    noof_threads = 7
+    with open ('volumes.json', 'r') as fh:
+        volumes = json.load (fh)
+    logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
+    p = Pool (noof_threads)
+    logging.error('orig volumes: ' + str(volumes))
+    v1 = [[x, volumes[x]] for x in volumes.keys()]
+    logging.error('listed volumes: ' + str(v1))
+    p.map(train_coin_process, v1)
 
 
 if __name__ == '__main__':
@@ -471,10 +486,10 @@ if __name__ == '__main__':
 #    RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 10000000, 8, 1600000).train_all ()    # avg_vol / 100
 #    RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 10000000, 8, 4800000).train_all ()    # avg_vol / 30    <---
 #    RLExec ('../fragments/', 'USDT_BTC', 180000, 8, 10000000, 8, 312500000).train_all ()   # avg_vol
-    RLExec ('../fragments/', 'USDT_BTC', 180000, 8, 10000000, 8, 12500000).train_all ()    # avg_vol / 30
+#    RLExec ('../fragments/', 'USDT_BTC', 180000, 8, 10000000, 8, 12500000).train_all ()    # avg_vol / 30
 #    RLExec ('../fragments/', 'BTC_DOGE', 180000, 8, 10000000, 8, 18541666).train_all ()
 #    RLExec ('../fragments/', 'BTC_DOGE', 180000, 8, 10000000, 8, 618055).train_all ()     # avg_vol / 30
 #    train_all_coins ()
 #     train_all_coins_threadedly ()
-#    train_all_coins_processly()
+    train_all_coins_processly()
     

@@ -41,13 +41,13 @@ def plot_policy (pi):
     zpos = np.zeros(64)
     dx = np.ones(64) * 0.8
     dy = np.ones(64) * 0.8
-    if False:
-        dz = pi_sell.flatten()
+    if True:
+        dz = pi_buy.flatten()
         ax1.set_xlabel ('t')
         ax1.set_ylabel ('i')
         ax1.set_zlabel ('argmax(a)')
     else:
-        dz = q_sell[0].flatten()
+        dz = q_sell[7].flatten()
         ax1.set_xlabel ('a')
         ax1.set_ylabel ('i')
         ax1.set_zlabel ('q')
