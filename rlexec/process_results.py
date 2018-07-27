@@ -8,8 +8,8 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
-market = 'BTC_ETH'
-#market = 'USDT_BTC'
+#market = 'BTC_ETH'
+market = 'USDT_BTC'
 #market = 'BTC_DOGE'
 outputs = glob.glob('../rlexec_output/*')
 latestdir = max(outputs, key=os.path.getctime)
@@ -41,13 +41,13 @@ def plot_policy (pi):
     zpos = np.zeros(64)
     dx = np.ones(64) * 0.8
     dy = np.ones(64) * 0.8
-    if True:
+    if False:
         dz = pi_sell.flatten()
         ax1.set_xlabel ('t')
         ax1.set_ylabel ('i')
         ax1.set_zlabel ('argmax(a)')
     else:
-        dz = q_buy[0].flatten()
+        dz = q_sell[0].flatten()
         ax1.set_xlabel ('a')
         ax1.set_ylabel ('i')
         ax1.set_zlabel ('q')

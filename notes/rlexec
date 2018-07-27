@@ -53,10 +53,22 @@ units --
 All prices are in bsatoshis per whole alts
 Volumes outside of episodes are in bsatoshis. Inside episodes they are in altsatoshis.
 
-todo --
+Optimistic execution correction --
+In low cost currencies (e.g. doge), we assume that transactions against the level we're in will be ours, but in most likelihood, it won't. For example, doge highest bid has 100M coins. We place 250k coins for three minutes, so the chances of a million coins sold into it hitting our bid depends on the exchange, but if it's reasonable (FIFO), they are tiny, but our engine will say we got filled. This affects the RL some, but mainly it destroys our q estimation. E.g. in doge, we get optimal q ~20, like in Ether, but in reality, there's a 200bp additional price penalty if our bids aren't hit, which is not taken into account.
+We have two ways of approaching this. One is to correct q itself in post processing, which is faster (but how do you do it?). The other is to account for it in the matching engine itself, which is more accurate (and corrects the RL as well).
+But how should we do it?
+One way is to assume we are last in line, and allow incoming orders to trade against existing ones in our level of the ob before they reach us. That might be overly conservative.
+Another way, is to only allow our fraction of the combined volume to be traded, which might better reflect the statistics. Also -- it's easier -- just reduce the volume, no need to track whether existing orders have been depleted.
+
+done --
 - bugfix - make sure actions don't overstep into their book. That can happen to _all_.
 - bugfix - scale volumes by ref_price (except for USDT) on each episode.
+todo --
+
+- Change actions. Now the ones buried in our ob are def too deep.
 - usdt-btc - Do we need anything new? Let's try running it. At least proper volavg and multiply volume by price.
+  usdt-btc is weird - why 6 is never the best action? Maybe just a quant error?
   Just a sec. What price? Doesn't really matter as long as it's constant throughout the run. Really? Hmmm... Isn't it better to invert everything?
+- Think about a programmatic way to extract optimal possible actions (with equal prob of running each overall?) relative to what are they even taken? are we back to our pparabolic fit? That should probably be in units of the ATR over the period, averaged on a few periods, and modified for every episode. Right? This is nasty.
 - extract trading cost. How do we do that? Just by taking 0-time full-volume q optimal value? Can we really assume that the midway point is a good reference?
 - reimplement trading bot
