@@ -55,9 +55,10 @@ class BinanceFragmentGenerator:
                 if i == 0:
                     assert fragment == None, 'OB in the middle of stream? i=' + str(i) + ' raw_file=' + raw_file
                 else:
-                    assert False # fragment != None # Only one ob per file in binance
+#                    assert False # fragment != None # Only one ob per file in binance
+                    assert fragment != None # Now multiple ones
                 if fragment != None and len(fragment.updates) > 0:
-                    fragment.end = fragment.updates[-1][0]
+#                    fragment.end = fragment.updates[-1][0]
                     self.store_fragment (fragment)
 
                 fragment = Fragment()
@@ -141,8 +142,8 @@ class BinanceFragmentGenerator:
                         logging.error(json.dumps(fragment.updates[-1]))
                 """
             i = i + 1
-        fragment.start = fragment.updates[0][U_TIME]
-        fragment.end = fragment.updates[-1][U_TIME]
+#        fragment.start = fragment.updates[0][U_TIME]
+#        fragment.end = fragment.updates[-1][U_TIME]
         self.store_fragment (fragment)
 
     def init_sorted_dict (self, d): # TODO: Diff bids from asks (the latter should be reversed)
@@ -152,6 +153,8 @@ class BinanceFragmentGenerator:
         return ret
 
     def store_fragment (self, fragment):
+        fragment.start = fragment.updates[0][U_TIME]
+        fragment.end = fragment.updates[-1][U_TIME]
         if self.keep_frags_in_mem:
             self.frags.append(fragment)
         pickle_fn = self.fragdir + str(fragment.start) + ".pickle"
