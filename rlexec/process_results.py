@@ -9,19 +9,19 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 #market = 'BTC_ETH'
-market = 'USDT_BTC'
+#market = 'USDT_BTC'
 #market = 'BTC_DOGE'
+market = 'BTC_XRP'
+#market = 'BTC_ZRX'
 outputs = glob.glob('../rlexec_output/*')
 latestdir = max(outputs, key=os.path.getctime)
 logging.error('Latest dir: ' + latestdir)
+#latestdir = join ('../rlexec_output/1532499592.pruned/', 'policy.json')
 with open (join (join (latestdir, market), 'q.json')) as fh:
     q = np.array (json.load (fh))
     q_buy = q[0]
     q_sell = q[1]
 with open (join (join (latestdir, market), 'policy.json')) as fh:                       # default is latest run
-#with open (join ('../rlexec_output/1532499592.pruned/', 'policy.json')) as fh:
-#with open (join ('../rlexec_output/1532503075.unpruned/', 'policy.json')) as fh:
-#with open (join ('../rlexec_output/1532539130.full_eth/', 'policy.json')) as fh:
     pi = np.array (json.load (fh))
     pi_buy = pi[0]
     pi_sell = pi[1]
@@ -42,7 +42,7 @@ def plot_policy (pi):
     dx = np.ones(64) * 0.8
     dy = np.ones(64) * 0.8
     if True:
-        dz = pi_buy.flatten()
+        dz = pi.flatten()
         ax1.set_xlabel ('t')
         ax1.set_ylabel ('i')
         ax1.set_zlabel ('argmax(a)')
@@ -54,8 +54,8 @@ def plot_policy (pi):
 
     ax1.bar3d(xpos, ypos, zpos, dx, dy, dz, color='#00ceaa')
     ax1.xlabel = 'blah'
-    plt.show()
 
 plot_policy (pi_buy)
-#plot_policy (pi_sell)
+plot_policy (pi_sell)
+plt.show()
 

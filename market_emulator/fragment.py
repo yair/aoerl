@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 import logging
 import pickle
 from collections import deque
+import inspect
 
 #class UpType (Enum):
 UPT_MODIFY = 0
@@ -44,8 +45,14 @@ class Fragment:
     def load_from_pickle (self, pickle_fn):
         with open (pickle_fn, 'rb') as fh:
             tmpfrag = pickle.load(fh)
+#            logging.error('tmpfrag keys: ' + str(tmpfrag.keys()))
+#            for property, value in vars(tmpfrag):
+#                    print (property, ": ", value)
+            logging.error(str([name for name,thing in inspect.getmembers([tmpfrag])]))
             self.asks_ob = tmpfrag.asks_ob
+            logging.error(pickle_fn + ': asks_ob has ' + str(len(self.asks_ob.keys())) + ' records')
             self.bids_ob = tmpfrag.bids_ob
+            logging.error(pickle_fn + ': bids_ob has ' + str(len(self.bids_ob.keys())) + ' records')
             self.start = tmpfrag.start
             self.end = tmpfrag.end
             self.updates = deque (tmpfrag.updates)
