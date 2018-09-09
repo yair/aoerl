@@ -48,7 +48,7 @@ class Fragment:
 #            logging.error('tmpfrag keys: ' + str(tmpfrag.keys()))
 #            for property, value in vars(tmpfrag):
 #                    print (property, ": ", value)
-            logging.error(str([name for name,thing in inspect.getmembers([tmpfrag])]))
+#            logging.error(str([name for name,thing in inspect.getmembers([tmpfrag])]))
             self.asks_ob = tmpfrag.asks_ob
             logging.error(pickle_fn + ': asks_ob has ' + str(len(self.asks_ob.keys())) + ' records')
             self.bids_ob = tmpfrag.bids_ob

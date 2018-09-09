@@ -1,0 +1,4 @@
+For optimal utilization of the discrete volume actions, we need to set the maximum depth into the ob we allow the actions to descend. We currently use some heuristics, which is about 1/10 or 1/30 of the average volume.
+Assuming this process is aproximately random walk, this should be related to the average number of transactions per period, since the heuristics doesn't really work for all markets.
+The lower the liquidity, the fewer number of transactions, and the less into the orderbook we need to descend.
+Can we just set that from a power of the volume?

@@ -36,6 +36,13 @@ MLU_SELL = 1
 
 PRICE_RESOLUTION = 1    # satoshi (whatabout BTC_USD?)
 
+BINANCE_MAKER_COST = 0.001
+BINANCE_TAKER_COST = 0.001
+POLO_MAKER_COST = 0.001
+POLO_TAKER_COST = 0.002
+MAKER_COST = POLO_MAKER_COST
+TAKER_COST = POLO_TAKER_COST
+
 class RLExec:
     def __init__ (self, basefragdir, outdir, market, period, time_rez, volume, vol_rez, average_vol, label=None):
         self.period = period        # in ms
@@ -62,6 +69,7 @@ class RLExec:
         for i in range(self.time_rez - 1, -1, -1):  # The only time that _should_ be reversed is the internal q-table intervals
             logging.error('============================================================')
             logging.error('Now calculating ' + self.market + ' optimal action for time step ' + str(i+1) + '/' + str(self.time_rez))
+            logging.debug('volume='+str(self.volume)+'bsat average_volume='+str(self.average_volume)+'bsat (pre-conversion) label='+self.label)
             logging.error('============================================================')
             self.gen = 0
             fnu = 0
@@ -87,11 +95,15 @@ class RLExec:
             a = time.time()
             (f, e) = self.get_episode (f, eid)
             if self.market == 'USDT_BTC':
-                e.volume = self.volume
+                e.volume = self.volume      # not sure this is still correct
                 e.average_volume = self.average_volume
+            elif self.market == 'BTCUSDT':
+                e.volume = self.volume
+                e.average_volume = 100000000 * self.average_volume / e.ref_price
             else:
                 e.volume = 100000000 * self.volume / e.ref_price    # e.volume is in alt satoshis (ref_price is in whole alts per bsatoshis)
                 e.average_volume = 100000000 * self.average_volume / e.ref_price
+            logging.debug('volume='+str(e.volume)+'altsat average_volume='+str(e.average_volume)+'altsat (post-conversion)')
             b = time.time()
             e.mo_cost = self.market_order_cost (e)
             c = time.time()
@@ -102,7 +114,8 @@ class RLExec:
             gettime = gettime + b - a
             motime = motime + c - b
             traintime = traintime + d - c
-        logging.warning('fetching episode took on avg ' + str (1000*gettime/(self.gen-fen)) + 'ms. Moing took ' + str(1000*motime/(self.gen-fen)) + 'ms. Training took ' + str (1000*traintime/(self.gen-fen)) + 'ms.')
+        if self.gen - fen > 0:
+            logging.warning('fetching episode took on avg ' + str (1000*gettime/(self.gen-fen)) + 'ms. Moing took ' + str(1000*motime/(self.gen-fen)) + 'ms. Training took ' + str (1000*traintime/(self.gen-fen)) + 'ms.')
 
     def get_episode (self, f, eid):
         x = 0
@@ -113,7 +126,7 @@ class RLExec:
             try:
                 f.single_step ()
             except AssertionError as ae:
-                logging.error('Assertion in Fragment::single_step: ' + str(ae))
+                logging.debug('Assertion in Fragment::single_step: ' + str(ae)) # This is unavoidable on binance, because we init from partial OBs
             x = x + 1
         y = 0
         while f.updates[y][U_TIME] < e.end and y + 1 < f.updates.__len__():
@@ -178,7 +191,13 @@ class RLExec:
 #                vol = self.volume * float(i + 1) / self.vol_rez
                 vol = oe.volume * float(i + 1) / self.vol_rez
                 price = self.action_price (a, oe, mode)
-                (remaining_vol, c_im) = self.immediate_cost(a, oe, mode, price, vol)
+                try:
+                    (remaining_vol, c_im) = self.immediate_cost(a, oe, mode, price, vol)
+                except TypeError as te:
+                    logging.error('Crashing: market='+self.market+'average_vol='+self.average_volume)
+                    logging.error('Crahsing: mode='+str(mode)+' t='+str(t)+' i='+str(i)+' vol='+str(vol)+'altsat a='+str(a)+' price='+str(price))
+#    def __init__ (self, basefragdir, outdir, market, period, time_rez, volume, vol_rez, average_vol, label=None):
+                    raise te
 #                i_y = int (round (self.vol_rez * remaining_vol / self.volume)) - 1  # <= [-1, i]. -1 means no further costs
                 i_y = int (round (self.vol_rez * remaining_vol / oe.volume)) - 1  # <= [-1, i]. -1 means no further costs
                 # correct cost quantization error
@@ -230,7 +249,9 @@ class RLExec:
                     v = v + volume
             logging.error('length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations')
 #            assert False, 'v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)
-            logging.error('OB depleted: v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action))
+            logging.error('OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action))
+            logging.error('Our ob dump: ' + str(our_obd))
+            assert False, 'market='+self.market+'length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations'+'OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)+'Our ob dump: ' + str(our_obd)
         if mode == MLU_BUY:
             our0 = e.bids_ob.keys()[-1]
             their0 = e.asks_ob.keys()[0]
@@ -343,16 +364,16 @@ class RLExec:
         for t in transactions:
             if mode == MLU_BUY:
                 if t['type'] == 'o':
-                    cost = cost + (t['price'] - ref_price) * t['amount'] + 0.002 * t['price'] * t['amount']
+                    cost = cost + (t['price'] - ref_price) * t['amount'] + TAKER_COST * t['price'] * t['amount']
                 elif t['type'] == 'd':
-                    cost = cost + (t['price'] - ref_price) * t['amount'] + 0.001 * t['price'] * t['amount']
+                    cost = cost + (t['price'] - ref_price) * t['amount'] + MAKER_COST * t['price'] * t['amount']
                 else:
                     assert False, 'transaction has no type'
             else:
                 if t['type'] == 'o':
-                    cost = cost - (t['price'] - ref_price) * t['amount'] + 0.002 * t['price'] * t['amount']
+                    cost = cost - (t['price'] - ref_price) * t['amount'] + TAKER_COST * t['price'] * t['amount']
                 elif t['type'] == 'd':
-                    cost = cost - (t['price'] - ref_price) * t['amount'] + 0.001 * t['price'] * t['amount']
+                    cost = cost - (t['price'] - ref_price) * t['amount'] + MAKER_COST * t['price'] * t['amount']
                 else:
                     assert False, 'transaction has no type' + str(transactions)
 #        cost = cost * 10000. / (ref_price * self.volume)
@@ -431,14 +452,18 @@ class RLExec:
 volumes = {}
 #lock = threading.Lock()
 lock = Lock()
-#exchange = 'poloniex'
-exchange = 'binance'
+exchange = 'poloniex'
+#exchange = 'binance'
 
 def train_coin_process (pair):
+#    if pair[0] != 'BTCUSDT':
+#    if pair[0] != 'GRSBTC':
+#        return
     if exchange == 'poloniex':
         RLExec ('../fragments/', '../rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/30, pair[2]).train_all ()
     elif exchange == 'binance':
-        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/30, pair[2]).train_all ()
+#        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/20, pair[2]).train_all ()
+        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 1000000, 8, pair[1]/10, pair[2]).train_all () # 10mBTC
     else:
         assert False, 'No such exchange ' + exchange
 
@@ -447,16 +472,20 @@ def train_all_coins_processly ():
     label = str(int(time.time()))
     if exchange == 'poloniex':
         vfn = 'volumes.json'
+        MAKER_COST = POLO_MAKER_COST
+        TAKER_COST = POLO_TAKER_COST
     elif exchange == 'binance':
         vfn = 'binance_volumes.json'
+        MAKER_COST = BINANCE_MAKER_COST
+        TAKER_COST = BINANCE_TAKER_COST
     with open (vfn, 'r') as fh:
         volumes = json.load (fh)
 #    volumes = {'OAXBTC': volumes['OAXBTC']}
     logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
     p = Pool (noof_threads)
-    logging.error('orig volumes: ' + str(volumes))
+#    logging.error('orig volumes: ' + str(volumes))
     v1 = [[x, volumes[x], label] for x in volumes.keys()]
-    logging.error('listed volumes: ' + str(v1))
+#    logging.error('listed volumes: ' + str(v1))
     p.map(train_coin_process, v1)
 
 
@@ -470,6 +499,7 @@ if __name__ == '__main__':
 #    RLExec ('../fragments/', 'BTC_XRP', 180000, 8, 10000000, 8, 3201666).train_all ()    # avg_vol / 30
 #    RLExec ('../fragments/', 'BTC_DOGE', 180000, 8, 10000000, 8, 18541666).train_all ()
 #    RLExec ('../fragments/', 'BTC_DOGE', 180000, 8, 10000000, 8, 618055).train_all ()     # avg_vol / 30
+#    RLExec ('../binance_fragments/', 'EDOBTC', 180000, 8, 10000000, 8, 618055).train_all ()     # avg_vol / 30
 #    train_all_coins ()
 #     train_all_coins_threadedly ()
     train_all_coins_processly()

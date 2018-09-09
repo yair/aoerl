@@ -171,7 +171,8 @@ class BinanceFragmentGenerator:
 
 if __name__ == '__main__':
     fragdir = '../binance_fragments/'
-    rawdirs = glob.glob('../binance_data/*')
+#    rawdirs = glob.glob('../binance_data/*')
+    rawdirs = ['../binance_data/1533533058']
     markets = []
     if markets == []:
         mhash = {}

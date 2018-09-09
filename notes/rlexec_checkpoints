@@ -1,0 +1,5 @@
+We want to be able to store state of rlexec so we won't need to waste so much time retraining.
+We need to store the number of episodes, and a list (hashed) of seen fragments, and ignore them when reloading. Will need testing.
+
+Can we do that? Volume numbers will be different anyway. This will be adding apples to oranges. :|
+This opens the wider question of how long a history we want to train on. On the one hand, the more statistics we have the better. On the other, it would be great to have some sensitivity to recent volatility level etc. Perhaps we shouldn't overthink it. This is just a small optimization. We have much bigger problems in PGP.

@@ -5,10 +5,10 @@ import os
 import logging
 import json
 
-outputs = glob.glob('../rlexec_output/*')
-#basedir = max(outputs, key=os.path.getctime)
+outputs = glob.glob('../binance_rlexec_output/*')
+basedir = max(outputs, key=os.path.getctime)
 #basedir = '../rlexec_output/1532960450'
-basedir = '../rlexec_output/1533058191.1x72.xrp'
+#basedir = '../rlexec_output/1533058191.1x72.xrp'
 coindirs = glob.glob(basedir + '/*')
 coindirs = [x for x in coindirs if os.path.isdir(x)]
 logging.error('coindirs: ' + str(coindirs))

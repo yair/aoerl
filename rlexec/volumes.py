@@ -27,15 +27,21 @@ class AvgVolume:
         return r
 
     def getAllVols (self, fsse, tsse, period):
-        markets = [os.path.basename(x) for x in glob.glob('../fragments/*')]
+#        markets = [os.path.basename(x) for x in glob.glob('../fragments/*')]
+        markets = self.getAllMarkets()
+        logging.error(str(markets))
         volumes = [self.getAvgVolume(x, fsse, tsse, period) for x in markets]
         result = dict (zip (markets, volumes))
         logging.error(str(result))
         with open ('volumes.json', 'w') as fh:
             json.dump (result, fh, indent=2)
 
+    def getAllMarkets (self):
+        ticker = self.polo.marketTicker ()
+        return ticker.keys()
+
 
 
 if __name__ == '__main__':
 #    AvgVolume().getAvgVolume('BTC_ETH', 1528097393, 1532460171, 180)
-    AvgVolume().getAllVols(1528097393, 1532460171, 180)
+    AvgVolume().getAllVols(1528097393, 1536197009775, 180)
