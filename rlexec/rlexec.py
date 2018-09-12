@@ -45,13 +45,17 @@ TAKER_COST = POLO_TAKER_COST
 
 class RLExec:
     def __init__ (self, basefragdir, outdir, market, period, time_rez, volume, vol_rez, average_vol, label=None):
+        logging.error('RLEXEC::__init__ (' + market + ')');
         self.period = period        # in ms
         self.time_rez = time_rez    # number of time intervals
         self.volume = volume        # Amount to transact, in bitcoin satoshis
         self.vol_rez = vol_rez      # number of volume intervals
         self.fragdir = join (basefragdir, market)
         self.outdir = outdir        # Where to put the results
-        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default - all
+        if (os.path.exists (self.fragdir)):
+            self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*[0123456789].pickle')])             # default - all
+        else:
+            self.frag_fns = []
         self.frag_limit = 0         # train on partial data of any coin
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530547986739.pickle')])             # 607 ep eth
 #        self.frag_fns =  sorted([join (self.fragdir, fn) for fn in listdir(self.fragdir) if fnmatch (fn, '*1530224638648.pickle')])             # 14369 ep eth
@@ -66,6 +70,8 @@ class RLExec:
         self.label = label
 
     def train_all (self):
+        if len(self.frag_fns) == 0:
+            return
         for i in range(self.time_rez - 1, -1, -1):  # The only time that _should_ be reversed is the internal q-table intervals
             logging.error('============================================================')
             logging.error('Now calculating ' + self.market + ' optimal action for time step ' + str(i+1) + '/' + str(self.time_rez))
@@ -467,6 +473,15 @@ def train_coin_process (pair):
     else:
         assert False, 'No such exchange ' + exchange
 
+def filter_volumes (volumes):
+    r = {}
+#    for (market, vol) in volumes:
+    for market in volumes.keys():
+        if market.startswith ('BTC_') or market == 'USDT_BTC':
+            r[market] = volumes[market]
+    logging.error('Trimmed volume list from ' + str(len(volumes.keys())) + ' records to ' + str(len(r.keys())))
+    return r
+    
 def train_all_coins_processly ():
     noof_threads = 8
     label = str(int(time.time()))
@@ -479,7 +494,7 @@ def train_all_coins_processly ():
         MAKER_COST = BINANCE_MAKER_COST
         TAKER_COST = BINANCE_TAKER_COST
     with open (vfn, 'r') as fh:
-        volumes = json.load (fh)
+        volumes = filter_volumes (json.load (fh))
 #    volumes = {'OAXBTC': volumes['OAXBTC']}
     logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
     p = Pool (noof_threads)

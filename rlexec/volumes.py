@@ -40,8 +40,6 @@ class AvgVolume:
         ticker = self.polo.marketTicker ()
         return ticker.keys()
 
-
-
 if __name__ == '__main__':
 #    AvgVolume().getAvgVolume('BTC_ETH', 1528097393, 1532460171, 180)
     AvgVolume().getAllVols(1528097393, 1536197009775, 180)
