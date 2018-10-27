@@ -5,7 +5,12 @@ import os
 import logging
 import json
 
-outputs = glob.glob('../binance_rlexec_output/*')
+exch = 'poloniex'
+
+if exch == 'poloniex':
+    outputs = glob.glob('../rlexec_output/*')
+else:
+    outputs = glob.glob('../binance_rlexec_output/*')
 basedir = max(outputs, key=os.path.getctime)
 #basedir = '../rlexec_output/1532960450'
 #basedir = '../rlexec_output/1533058191.1x72.xrp'

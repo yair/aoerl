@@ -39,12 +39,20 @@ class BinanceFragmentGenerator:
             logging.error("extending from " + raw_dir);
             self.parse_raw_file(join(raw_dir, self.market))
 
+    def json_loads_safe (self, s):
+        try:
+            return json.loads(s)
+        except:
+            logging.error("json exception - malformed line: " + s)
+            return {}
+
     def parse_raw_file (self, raw_file):    # Raw files are as-is exchange stream recordings, one line per event
         if not os.path.exists(raw_file):
             return
         with open (raw_file, 'r') as fh:
             lines = fh.readlines()      # This might bite us if files are too large
-        lines = [json.loads(x) for x in lines]
+#        lines = [json.loads(x) for x in lines]
+        lines = [self.json_loads_safe(x) for x in lines]
         fragment = None
         i = 0
         time = 0
@@ -84,6 +92,9 @@ class BinanceFragmentGenerator:
 #  "T": 123456785,   // Trade time
 #  "m": true,        // Is the buyer the market maker?
 #  "M": true         // Ignore
+                if 'e' not in line:
+                    logging.error('Weird line: ' + str(line))
+                    continue
                 if line['e'] == 'trade':    # Trades are always one per line
                     if line['m']:
                         or_type = ORT_SELL
@@ -153,6 +164,9 @@ class BinanceFragmentGenerator:
         return ret
 
     def store_fragment (self, fragment):
+        if len(fragment.updates) == 0:
+            logging.error('fragment has no updates.')
+            return
         fragment.start = fragment.updates[0][U_TIME]
         fragment.end = fragment.updates[-1][U_TIME]
         if self.keep_frags_in_mem:
@@ -171,8 +185,8 @@ class BinanceFragmentGenerator:
 
 if __name__ == '__main__':
     fragdir = '../binance_fragments/'
-#    rawdirs = glob.glob('../binance_data/*')
-    rawdirs = ['../binance_data/1533533058']
+    rawdirs = glob.glob('../binance_data/*')
+#    rawdirs = ['../binance_data/1533533058']
     markets = []
     if markets == []:
         mhash = {}

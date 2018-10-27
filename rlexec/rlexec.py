@@ -71,6 +71,7 @@ class RLExec:
 
     def train_all (self):
         if len(self.frag_fns) == 0:
+            logging.error('No frags found for '  + self.market + '. Aborting.')
             return
         for i in range(self.time_rez - 1, -1, -1):  # The only time that _should_ be reversed is the internal q-table intervals
             logging.error('============================================================')
@@ -458,8 +459,8 @@ class RLExec:
 volumes = {}
 #lock = threading.Lock()
 lock = Lock()
-exchange = 'poloniex'
-#exchange = 'binance'
+#exchange = 'poloniex'
+exchange = 'binance'
 
 def train_coin_process (pair):
 #    if pair[0] != 'BTCUSDT':
@@ -477,13 +478,14 @@ def filter_volumes (volumes):
     r = {}
 #    for (market, vol) in volumes:
     for market in volumes.keys():
-        if market.startswith ('BTC_') or market == 'USDT_BTC':
-            r[market] = volumes[market]
+#        if market.startswith ('BTC_') or market == 'USDT_BTC':
+#        if market == 'BTC_EOS':
+        r[market] = volumes[market]
     logging.error('Trimmed volume list from ' + str(len(volumes.keys())) + ' records to ' + str(len(r.keys())))
     return r
     
 def train_all_coins_processly ():
-    noof_threads = 8
+    noof_threads = 6
     label = str(int(time.time()))
     if exchange == 'poloniex':
         vfn = 'volumes.json'

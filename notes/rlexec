@@ -67,11 +67,12 @@ done --
   usdt-btc is weird - why 6 is never the best action? Maybe just a quant error?
   Just a sec. What price? Doesn't really matter as long as it's constant throughout the run. Really? Hmmm... Isn't it better to invert everything?
 - extract trading cost. How do we do that? Just by taking 0-time full-volume q optimal value? Can we really assume that the midway point is a good reference?
+- Why didn't btc_usdt get execed with the rest?
 
 todo --
 
-- Why didn't btc_usdt get execed with the rest?
 - Try pruning according to the same criterion used to generate transactions.
-- Change actions. Now the ones buried in our ob are def too deep. Done, kinda? Took 1/30 avg volume as a yardstick, but should probably come up with something more generic, prolly related to the square root of the average number of transactions in a period.
+- Change actions. Now the ones buried in our ob are def too deep. Done, kinda? Took 1/30 avg volume as a yardstick, but should probably come up with something more generic, prolly related to the square root of the average number of transactions in a period or somesuch.
 - Think about a programmatic way to extract optimal possible actions (with equal prob of running each overall?) relative to what are they even taken? are we back to our pparabolic fit? That should probably be in units of the ATR over the period, averaged on a few periods, and modified for every episode. Right? This is nasty.
 - reimplement trading bot, or modify existing one.
+- Better efficiency. Every fragfile should only be processed once with additional metadata to add its results to new ones. Also sync banlist with PGP.

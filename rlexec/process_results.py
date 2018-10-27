@@ -8,10 +8,10 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
-#market = 'BTC_ETH'
+market = 'BTC_CLAM'
 #market = 'USDT_BTC'
 #market = 'BTC_DOGE'
-market = 'BTC_STR'
+#market = 'BTC_ZRX'
 #market = 'ICNBTC'
 #market = 'BTCUSDT' # 40kBTCpd
 #market = 'ETHBTC' # 6kBTCpd
@@ -54,7 +54,7 @@ def plot_policy (pi):
         ax1.set_ylabel ('t')
         ax1.set_zlabel ('argmax(a)')
     else:
-        dz = q_sell[1].flatten()
+        dz = q_sell[5].flatten()
         ax1.set_xlabel ('a')
         ax1.set_ylabel ('i')
         ax1.set_zlabel ('q')
