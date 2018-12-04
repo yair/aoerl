@@ -9,9 +9,11 @@ import fnmatch
 import glob
 from os.path import isfile, join
 
-from market_emulator.fragment import *
+#from market_emulator.fragment import *
+from fragment import *
 #from market_emulator.reverse_fragment import ReverseFragment
-from market_emulator.fragment_index import FragmentIndex
+#from market_emulator.fragment_index import FragmentIndex
+from fragment_index import FragmentIndex
 
 class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (after 1 day, let's say, although can be smaller if we can use two consecutive frags in the
                             #       same episode
@@ -106,14 +108,15 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
                         assert False, "u['data']['type'] = " + u['data']['type']
                     rate = int(round(float(u['data']['rate']) * REZ))
                     amount = int(round(float(u['data']['amount']) * REZ))
-                    assert uid != 998
+                    assert uid != 1998
                     fragment.updates.append((time, uid, up_type, or_type, rate, amount))
                     uid = uid + 1
                     if i == 13:
                         logging.error(fragment.updates[-1])
                         logging.error(json.dumps(fragment.updates[-1]))
             i = i + 1
-        if len(fragment.updates) > 0:
+        if fragment != None and len(fragment.updates) > 0:
+            #        if len(fragment.updates) > 0:
             fragment.end = fragment.updates[-1][U_TIME]
             self.store_fragment (fragment)
 #        self.index.add_frag (fragment)
@@ -150,7 +153,8 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
 if __name__ == '__main__':
     fragdir = '../fragments/'
     rawdirs = glob.glob('../data/*')
+    markets = ["BTC_AMP","BTC_ARDR","BTC_BAT","BTC_BCH","BTC_BCN","BTC_BNT","BTC_BTS","BTC_BURST","BTC_CLAM","BTC_CVC","BTC_DASH","BTC_DCR","BTC_DGB","BTC_DOGE","BTC_EOS","BTC_ETC","BTC_ETH","BTC_EXP","BTC_FCT","BTC_FOAM","BTC_GAME","BTC_GAS","BTC_GNO","BTC_GNT","BTC_HUC","BTC_KNC","BTC_LBC","BTC_LOOM","BTC_LSK","BTC_LTC","BTC_MAID","BTC_MANA","BTC_NAV","BTC_NMC","BTC_NXT","BTC_OMG","BTC_OMNI","BTC_PASC","BTC_PPC","BTC_QTUM","BTC_REP","BTC_SBD","BTC_SC","BTC_SNT","BTC_STEEM","BTC_STORJ","BTC_STR","BTC_STRAT","BTC_SYS","BTC_VIA","BTC_VTC","BTC_XCP","BTC_XEM","BTC_XMR","BTC_XPM","BTC_XRP","BTC_ZEC","BTC_ZRX","USDT_BTC"]
 #    markets = ['BTC_ARDR', 'BTC_BCH', 'BTC_BCN', 'BTC_BCY', 'BTC_BLK', 'BTC_BTCD', 'BTC_BTM', 'BTC_BTS', 'BTC_BURST', 'BTC_CLAM', 'BTC_CVC', 'BTC_DASH', 'BTC_DCR', 'BTC_DGB', 'BTC_DOGE', 'BTC_EMC2', 'BTC_EOS', 'BTC_ETC', 'BTC_ETH', 'BTC_FCT', 'BTC_FLDC', 'BTC_FLO', 'BTC_GAME', 'BTC_GAS', 'BTC_GNT', 'BTC_GRC', 'BTC_HUC', 'BTC_LBC', 'BTC_LSK', 'BTC_LTC', 'BTC_MAID', 'BTC_NAV', 'BTC_NEOS', 'BTC_NMC', 'BTC_NXC', 'BTC_NXT', 'BTC_OMG', 'BTC_OMNI', 'BTC_PASC', 'BTC_PINK', 'BTC_POT', 'BTC_PPC', 'BTC_RADS', 'BTC_REP', 'BTC_RIC', 'BTC_SBD', 'BTC_SC', 'BTC_STEEM', 'BTC_STORJ', 'BTC_STR', 'BTC_STRAT', 'BTC_SYS', 'BTC_VIA', 'BTC_VRC', 'BTC_VTC', 'BTC_XBC', 'BTC_XCP', 'BTC_XEM', 'BTC_XMR', 'BTC_XPM', 'BTC_XRP', 'BTC_XVC', 'BTC_ZEC', 'BTC_ZRX', 'USDT_BTC']
-    markets = ['BTC_EOS']
+#    markets = ['BTC_EOS']
     for m in markets:
         FragmentGenerator (m, fragdir).extend_from_raw_dirs(rawdirs)

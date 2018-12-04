@@ -7,7 +7,8 @@ import pickle
 import os
 import fnmatch
 
-from market_emulator.fragment import Fragment
+#from market_emulator.fragment import Fragment
+from fragment import Fragment
 
 class FragmentIndex:
     def __init__ (self, market, basefragdir):

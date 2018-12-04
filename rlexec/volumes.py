@@ -37,7 +37,7 @@ class AvgVolume:
         volumes = [self.getAvgVolume(x, fsse, tsse, period) for x in markets]
         result = dict (zip (markets, volumes))
         logging.error(str(result))
-        with open ('volumes.poloniex.360s.1540623298.json', 'w') as fh:
+        with open ('volumes.poloniex.' + str(period) + 's.' + str(int(round(time.time() * 1000))) + '.json', 'w') as fh:
             json.dump (result, fh, indent=2)
 
     def getAllMarkets (self):
@@ -47,4 +47,5 @@ class AvgVolume:
 if __name__ == '__main__':
 #    AvgVolume().getAvgVolume('BTC_ETH', 1528097393, 1532460171, 180)
 #    AvgVolume().getAllVols(1528097393, 1536197009775, 180)
-    AvgVolume().getAllVols(1538031298, 1540623298, 360)
+#    AvgVolume().getAllVols(1533081600, 1540944000, 720) # Aug. 1st to Oct. 31st, 2018
+    AvgVolume().getAllVols(1533081600, 1543729646, 360) # Aug. 1st to Dec. 2nd, 2018

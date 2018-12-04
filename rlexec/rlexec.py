@@ -9,11 +9,18 @@ import os
 #import thread Docs said it existed, natch
 import threading
 from multiprocessing import Process, Lock, Pool
+import re
 
 import numpy as np
 import math
 
-from market_emulator.fragment import *
+import sys
+sys.path.append(os.path.abspath(".."))
+sys.path.append(os.path.abspath("../market_emulator"))
+#sys.path.append(os.path.abspath("/home/yair/w/PGPortfolio/pgportfolio"))
+#from market_emulator.fragment import *
+#from market_emulator.fragment import Fragment as Fragment
+from fragment import *
 
 #logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.WARNING)
@@ -69,10 +76,11 @@ class RLExec:
         self.market = market
         self.label = label
 
-    def train_all (self):
+    def train_all (self, fmsse):
         if len(self.frag_fns) == 0:
             logging.error('No frags found for '  + self.market + '. Aborting.')
             return
+        tsre = re.compile("\d{13}")
         for i in range(self.time_rez - 1, -1, -1):  # The only time that _should_ be reversed is the internal q-table intervals
             logging.error('============================================================')
             logging.error('Now calculating ' + self.market + ' optimal action for time step ' + str(i+1) + '/' + str(self.time_rez))
@@ -81,11 +89,25 @@ class RLExec:
             self.gen = 0
             fnu = 0
             for fn in self.frag_fns:
+#                if int(fn[13:26]) < fmsse:
+                m = tsre.search(fn)
+                if m == None:
+                    logging.error('Failed to parse fragment file name ' + fn)
+                    assert False
+                if int(m.group()) < fmsse:
+                    logging.warning(fn + ' skipped -- ' + m.group() + ' < ' + str(fmsse))
+                    continue
                 assert os.path.exists(fn)
+#                if not '1539371875204' in fn:
+#                    continue
+                f = Fragment (fn)
+                if f.end < fmsse: # from date (in milliseconds since epoch)
+                    assert False
                 self.train_fragment (i, Fragment (fn))
                 if self.frag_limit > 0:
                     fnu = fnu + 1
                     if fnu >= self.frag_limit:
+                        logging.error(market + ' reached frag limit')
                         break
 
             self.calc_optimal_actions (i)
@@ -114,7 +136,9 @@ class RLExec:
             b = time.time()
             e.mo_cost = self.market_order_cost (e)
             c = time.time()
+            e.ref_price = e.bids_ob.keys()[-1] # too pessimistic?
             self.train_episode (i, e, MLU_BUY)
+            e.ref_price = e.asks_ob.keys()[0] # too pessimistic?
             self.train_episode (i, e, MLU_SELL)
             d = time.time()
             self.gen = self.gen + 1
@@ -142,7 +166,7 @@ class RLExec:
         logging.info('Episode updates span ' + str(f.updates[y][U_TIME] - f.updates[0][U_TIME])  + ' ms')
         e.asks_ob = f.asks_ob
         e.bids_ob = f.bids_ob
-        e.ref_price = 0.5 * (e.asks_ob.keys()[0] + e.bids_ob.keys()[-1])
+        e.ref_price = 0.5 * (e.asks_ob.keys()[0] + e.bids_ob.keys()[-1]) # Too optimistic?
         e.updates = deque (itertools.islice (f.updates, 0, y))
 #        e.updates = self.prune (e) # Can't understand why it warps the results
         return (f, e)
@@ -258,7 +282,7 @@ class RLExec:
 #            assert False, 'v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)
             logging.error('OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action))
             logging.error('Our ob dump: ' + str(our_obd))
-            assert False, 'market='+self.market+'length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations'+'OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)+'Our ob dump: ' + str(our_obd)
+            assert False, 'market='+self.market+' length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations. OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)+' epiode = ' + str(e) + ' Our ob dump: ' + str(our_obd)
         if mode == MLU_BUY:
             our0 = e.bids_ob.keys()[-1]
             their0 = e.asks_ob.keys()[0]
@@ -459,15 +483,16 @@ class RLExec:
 volumes = {}
 #lock = threading.Lock()
 lock = Lock()
-#exchange = 'poloniex'
-exchange = 'binance'
+exchange = 'poloniex'
+#exchange = 'binance'
+fmsse = 1533081600000 # Aug. 1st, 2018
 
 def train_coin_process (pair):
 #    if pair[0] != 'BTCUSDT':
 #    if pair[0] != 'GRSBTC':
 #        return
     if exchange == 'poloniex':
-        RLExec ('../fragments/', '../rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/30, pair[2]).train_all ()
+        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/30, pair[2]).train_all (fmsse)
     elif exchange == 'binance':
 #        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/20, pair[2]).train_all ()
         RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 1000000, 8, pair[1]/10, pair[2]).train_all () # 10mBTC
@@ -475,20 +500,34 @@ def train_coin_process (pair):
         assert False, 'No such exchange ' + exchange
 
 def filter_volumes (volumes):
+    banlist = { 'FLO':1, 'FLDC':1, 'XVC':1, 'BCY':1, 'NXC':1, 'RADS':1, 'BLK':1, 'PINK':1, 'RIC':1,   # 2.8.2018 delisting
+		'BTCD':1, 'BTM':1, 'EMC2':1, 'GRC':1, 'NEOS':1, 'POT':1, 'VRC':1, 'XBC':1,            # 25.9.2018 delisting
+		'USDC':1,                                                                             # WTF's this shit?
+		'GNO':1, 'AMP':1, 'EXP':1}
     r = {}
 #    for (market, vol) in volumes:
     for market in volumes.keys():
-#        if market.startswith ('BTC_') or market == 'USDT_BTC':
-#        if market == 'BTC_EOS':
-        r[market] = volumes[market]
+        if not (market.startswith ('BTC_') or market == 'USDT_BTC'):
+            continue
+#        if not (market.startswith ('USDT_BTC')):
+#            continue
+        for banned in banlist: # This is fugly on several fronts
+            if banned in market:
+                logging.error('Banning market ' + market)
+                break
+        else:                               # Yes, this is an else on a for
+            r[market] = volumes[market]
+
     logging.error('Trimmed volume list from ' + str(len(volumes.keys())) + ' records to ' + str(len(r.keys())))
     return r
     
 def train_all_coins_processly ():
-    noof_threads = 6
+    noof_threads = 4
     label = str(int(time.time()))
     if exchange == 'poloniex':
-        vfn = 'volumes.json'
+#        vfn = 'volumes.json'
+#        vfn = 'volumes.poloniex.720s.1540944000.json'
+        vfn = 'volumes.poloniex.360s.1543764754713.json'
         MAKER_COST = POLO_MAKER_COST
         TAKER_COST = POLO_TAKER_COST
     elif exchange == 'binance':
@@ -497,7 +536,8 @@ def train_all_coins_processly ():
         TAKER_COST = BINANCE_TAKER_COST
     with open (vfn, 'r') as fh:
         volumes = filter_volumes (json.load (fh))
-#    volumes = {'OAXBTC': volumes['OAXBTC']}
+#    volumes = {'OAXBTC': volumes['OAXBTC']} # binance
+#    volumes = {'BTC_BCN': volumes['BTC_PPC']}
     logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
     p = Pool (noof_threads)
 #    logging.error('orig volumes: ' + str(volumes))
