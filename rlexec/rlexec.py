@@ -25,6 +25,8 @@ from fragment import *
 #logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.WARNING)
 
+PESSIMISTIC = False
+
 ACTIONS = 16
 #ACTIONS = 8
 
@@ -155,9 +157,11 @@ class RLExec:
             b = time.time()
             e.mo_cost = self.market_order_cost (e)
             c = time.time()
-            e.ref_price = e.bids_ob.keys()[-1] # too pessimistic?
+            if PESSIMISTIC:
+                e.ref_price = e.bids_ob.keys()[-1]
             self.train_episode (i, e, MLU_BUY)
-            e.ref_price = e.asks_ob.keys()[0] # too pessimistic?
+            if PESSIMISTIC:
+                e.ref_price = e.asks_ob.keys()[0]
             self.train_episode (i, e, MLU_SELL)
             d = time.time()
             self.gen = self.gen + 1
