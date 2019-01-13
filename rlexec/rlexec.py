@@ -25,17 +25,38 @@ from fragment import *
 #logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.WARNING)
 
-ACTIONS = 8
+PESSIMISTIC = False
+
+ACTIONS = 16
+#ACTIONS = 8
 
 # Action LookUp
-ALU_1AV      = 0
-ALU_05AV     = 1
-ALU_025AV    = 2
-ALU_0125AV   = 3
-ALU_00625AV  = 4
-ALU_NEAR     = 5
-ALU_MID      = 6
-ALU_FAR      = 7
+if ACTIONS == 16:
+    ALU_1AV         = 0
+    ALU_05AV        = 1
+    ALU_025AV       = 2
+    ALU_0125AV      = 3
+    ALU_00625AV     = 4
+    ALU_003125AV    = 5
+    ALU_00150625AV  = 6
+    ALU_NEAR        = 7
+    ALU_MID_NEAR    = 8
+    ALU_MID         = 9
+    ALU_MID_FAR     = 10
+    ALU_FAR         = 11
+    ALU_BR_0125     = 12
+    ALU_BR_025      = 13
+    ALU_BR_05       = 14
+    ALU_BR_075      = 15
+elif ACTIONS == 8:
+    ALU_1AV      = 0
+    ALU_05AV     = 1
+    ALU_025AV    = 2
+    ALU_0125AV   = 3
+    ALU_00625AV  = 4
+    ALU_NEAR     = 5
+    ALU_MID      = 6
+    ALU_FAR      = 7
 
 # Mode LookUp # TODO: move to episode, and have a third option of random
 MLU_BUY = 0
@@ -136,9 +157,11 @@ class RLExec:
             b = time.time()
             e.mo_cost = self.market_order_cost (e)
             c = time.time()
-            e.ref_price = e.bids_ob.keys()[-1] # too pessimistic?
+            if PESSIMISTIC:
+                e.ref_price = e.bids_ob.keys()[-1]
             self.train_episode (i, e, MLU_BUY)
-            e.ref_price = e.asks_ob.keys()[0] # too pessimistic?
+            if PESSIMISTIC:
+                e.ref_price = e.asks_ob.keys()[0]
             self.train_episode (i, e, MLU_SELL)
             d = time.time()
             self.gen = self.gen + 1
@@ -221,7 +244,7 @@ class RLExec:
             for a in range (ACTIONS):
 #                vol = self.volume * float(i + 1) / self.vol_rez
                 vol = oe.volume * float(i + 1) / self.vol_rez
-                price = self.action_price (a, oe, mode)
+                price = self.action_price (a, oe, mode, vol)
                 try:
                     (remaining_vol, c_im) = self.immediate_cost(a, oe, mode, price, vol)
                 except TypeError as te:
@@ -246,8 +269,14 @@ class RLExec:
                 """
                 self.update_cost (mode, t, oe, i, i_y, a, c_im)
 
-    def action_price (self, action, e, mode):   # This is adapted from gym env, and should probably be put in a separate place.
-                                                # Also, this is markedly different from the paper method of getting prices, which I don't understand.
+    def action_price (self, action, e, mode, vol):
+        if ACTIONS == 8:
+            return self.action_price_8a (action, e, mode)
+        elif ACTIONS == 16:
+            return self.action_price_16a (action, e, mode, vol)
+
+    def action_price_8a (self, action, e, mode):    # This is adapted from gym env, and should probably be put in a separate place.
+                                                    # Also, this is markedly different from the paper method of getting prices, which I don't understand.
         if action <= ALU_00625AV:
 #            no_deeper_than = self.average_volume * 2. ** (-action)
             no_deeper_than = e.average_volume * 2. ** (-action)
@@ -317,6 +346,149 @@ class RLExec:
                 return their0 - PRICE_RESOLUTION
             else:
                 return their0 + PRICE_RESOLUTION
+
+    def action_price_16a (self, action, e, mode, vol):  # This is adapted from gym env, and should probably be put in a separate place.
+                                                        # Also, this is markedly different from the paper method of getting prices, which I don't understand.
+        if action <= ALU_00150625AV:
+#            no_deeper_than = self.average_volume * 2. ** (-action)
+            no_deeper_than = e.average_volume * 2. ** (-action)
+            logging.debug ('no_deeper_than = ' + str(no_deeper_than) + 'altsat')
+            v = 0
+            volume = 0
+            i = 0
+            if mode == MLU_BUY:
+                our_obkv = e.bids_ob.__reversed__()
+                our_obd = e.bids_ob
+            else:
+                our_obkv = e.asks_ob.keys()
+                our_obd = e.asks_ob
+            for price in our_obkv:
+                i = i + 1
+                volume = our_obd[price]
+                logging.debug('price = ' +str(price) + 'bsat => v + volume = ' + str(v) + 'altsat + ' + str(volume) + 'altsat')
+                if v + volume > no_deeper_than:
+                    if mode == MLU_BUY:
+                        if price + PRICE_RESOLUTION >= e.asks_ob.keys()[0]: # Don't overstep into their ob too soon
+                            return price
+                        else:
+                            return price + PRICE_RESOLUTION
+                    else:
+                        if price - PRICE_RESOLUTION <= e.bids_ob.keys()[-1]:
+                            return price
+                        else:
+                            return price - PRICE_RESOLUTION
+                else:
+                    v = v + volume
+            logging.error('length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations')
+#            assert False, 'v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)
+            logging.error('OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action))
+            logging.error('Our ob dump: ' + str(our_obd))
+            assert False, 'market='+self.market+' length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations. OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)+' epiode = ' + str(e) + ' Our ob dump: ' + str(our_obd)
+        if mode == MLU_BUY:
+            our0 = e.bids_ob.keys()[-1]
+            their0 = e.asks_ob.keys()[0]
+        else:
+            our0 = e.asks_ob.keys()[0]
+            their0 = e.bids_ob.keys()[-1]
+        logging.debug('our0 = ' + str(our0) + 'bsat their0 = ' + str(their0) + 'bsat')
+        if action == ALU_NEAR:
+            if mode == MLU_BUY:
+                if our0 + PRICE_RESOLUTION >= their0:
+                    return our0
+                else:
+                    return our0 + PRICE_RESOLUTION
+            else:
+                if our0 - PRICE_RESOLUTION <= their0:
+                    return our0
+                else:
+                    return our0 - PRICE_RESOLUTION
+        if action >= ALU_MID_NEAR and action <= ALU_MID_FAR:
+            if action == ALU_MID_NEAR:
+                wanted_price = (3 * our0 + their0) // 4
+            elif action == ALU_MID:
+                wanted_price = (our0 + their0) // 2
+            elif action == ALU_MID_FAR:
+                wanted_price = (our0 + 3 * their0) // 4
+            if mode == MLU_BUY:
+                if wanted_price >= their0:
+                    return their0 - PRICE_RESOLUTION
+                else:
+                    return wanted_price
+            else:
+                if wanted_price <= their0:
+                    return their0 + PRICE_RESOLUTION
+                else:
+                    return wanted_price
+        """        if action == ALU_MID_NEAR:
+            if mode == MLU_BUY:
+                if (3 * our0 + their0) // 4 >= their0:
+                    return their0 - PRICE_RESOLUTION
+                else:
+                    return (3 * our0 + their0) // 4
+            else:
+                if (3 * our0 + their0) // 4 <= their0:
+                    return their0 + PRICE_RESOLUTION
+                else:
+                    return (3 * our0 + their0) // 4
+        if action == ALU_MID:
+            if mode == MLU_BUY:
+                if (our0 + their0) // 2 >= their0:
+                    return their0 - PRICE_RESOLUTION
+                else:
+                    return (our0 + their0) // 2
+            else:
+                if (our0 + their0) // 2 <= their0:
+                    return their0 + PRICE_RESOLUTION
+                else:
+                    return (our0 + their0) // 2 """
+        if action == ALU_FAR:
+            if mode == MLU_BUY:
+                return their0 - PRICE_RESOLUTION
+            else:
+                return their0 + PRICE_RESOLUTION
+        if action >= ALU_BR_0125:
+            if action == ALU_BR_0125:
+                no_deeper_than = vol / 8
+            else:
+                no_deeper_than = vol * (action - ALU_BR_0125) / 4
+#    ALU_BR_025
+#    ALU_BR_05
+#    ALU_BR_075
+#            no_deeper_than = e.average_volume * 2. ** (-action)
+            logging.debug ('no_deeper_than = ' + str(no_deeper_than) + 'altsat')
+            v = 0
+            volume = 0
+            i = 0
+            if mode == MLU_BUY:
+                their_obkv = e.asks_ob.keys()
+                their_obd = e.asks_ob
+            else:
+                their_obkv = e.bids_ob.__reversed__()
+                their_obd = e.bids_ob
+            for price in their_obkv:
+                i = i + 1
+                volume = their_obd[price]
+                logging.debug('price = ' +str(price) + 'bsat => v + volume = ' + str(v) + 'altsat + ' + str(volume) + 'altsat')
+                if v + volume > no_deeper_than:
+                    if mode == MLU_BUY:
+                        return price - PRICE_RESOLUTION
+#                        if price + PRICE_RESOLUTION >= e.asks_ob.keys()[0]: # Don't overstep into their ob too soon
+#                            return price
+#                        else:
+#                            return price + PRICE_RESOLUTION
+                    else:
+                        return price + PRICE_RESOLUTION
+#                        if price - PRICE_RESOLUTION <= e.bids_ob.keys()[-1]:
+#                            return price
+#                        else:
+#                            return price - PRICE_RESOLUTION
+                else:
+                    v = v + volume
+            logging.error('length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations')
+#            assert False, 'v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)
+            logging.error('OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action))
+            logging.error('Our ob dump: ' + str(our_obd))
+            assert False, 'market='+self.market+' length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations. OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)+' epiode = ' + str(e) + ' Our ob dump: ' + str(our_obd)
 
     def immediate_cost (self, a, oe, mode, price, vol):     # adapted from market_emulator.episode
         transactions = []
@@ -485,14 +657,16 @@ volumes = {}
 lock = Lock()
 exchange = 'poloniex'
 #exchange = 'binance'
-fmsse = 1533081600000 # Aug. 1st, 2018
+#fmsse = 1533081600000 # Aug. 1st, 2018
+#fmsse = 1543564947000 # Nov. 30th, 2018
+fmsse = 1542064947000 # Nov. 12th, 2018
 
 def train_coin_process (pair):
 #    if pair[0] != 'BTCUSDT':
 #    if pair[0] != 'GRSBTC':
 #        return
     if exchange == 'poloniex':
-        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/30, pair[2]).train_all (fmsse)
+        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/15, pair[2]).train_all (fmsse)
     elif exchange == 'binance':
 #        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/20, pair[2]).train_all ()
         RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 1000000, 8, pair[1]/10, pair[2]).train_all () # 10mBTC
@@ -537,7 +711,8 @@ def train_all_coins_processly ():
     with open (vfn, 'r') as fh:
         volumes = filter_volumes (json.load (fh))
 #    volumes = {'OAXBTC': volumes['OAXBTC']} # binance
-#    volumes = {'BTC_BCN': volumes['BTC_PPC']}
+#    volumes = {'BTC_BCN': volumes['BTC_PPC']} # polo
+#    volumes = {'BTC_ETH': volumes['BTC_ETH']}
     logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
     p = Pool (noof_threads)
 #    logging.error('orig volumes: ' + str(volumes))
