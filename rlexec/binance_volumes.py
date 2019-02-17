@@ -47,4 +47,5 @@ class AvgVolume:
 
 if __name__ == '__main__':
 #    AvgVolume().getAvgVolume('BTC_ETH', 1528097393, 1532460171, 180)
-    AvgVolume().getAllVols(1528097393, 1532460171, 180)
+#    AvgVolume().getAllVols(1528097393, 1532460171, 180)
+    AvgVolume().getAllVols(1541385118, 1547301350, 360)
