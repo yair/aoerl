@@ -24,7 +24,8 @@ class AvgVolume:
             if 'USDT' in market:
                 v = v + float(c['volume']) / float(c['close'])
             else:
-                v = v + float(c['volume'])
+                if 'volume' in c:
+                    v = v + float(c['volume'])
         r = v * 100000000 * period / (86400. * len(chart))
         logging.error(str(r))
         time.sleep(1)
@@ -48,4 +49,4 @@ if __name__ == '__main__':
 #    AvgVolume().getAvgVolume('BTC_ETH', 1528097393, 1532460171, 180)
 #    AvgVolume().getAllVols(1528097393, 1536197009775, 180)
 #    AvgVolume().getAllVols(1533081600, 1540944000, 720) # Aug. 1st to Oct. 31st, 2018
-    AvgVolume().getAllVols(1533081600, 1543729646, 360) # Aug. 1st to Dec. 2nd, 2018
+    AvgVolume().getAllVols(1533081600, 1550388843, 360) # Aug. 1st to Feb 17th, 2019

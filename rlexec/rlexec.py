@@ -68,7 +68,7 @@ BINANCE_MAKER_COST = 0.001
 BINANCE_TAKER_COST = 0.001
 POLO_MAKER_COST = 0.001
 POLO_TAKER_COST = 0.002
-MAKER_COST = POLO_MAKER_COST
+MAKER_COST = POLO_MAKER_COST    # Not a bug! Will be changed during invocation!
 TAKER_COST = POLO_TAKER_COST
 
 class RLExec:
@@ -357,7 +357,7 @@ class RLExec:
             volume = 0
             i = 0
             if mode == MLU_BUY:
-                our_obkv = e.bids_ob.__reversed__()
+                our_obkv = e.bids_ob.__reversed__()     # TODO: Don't reverse here. Might be the main source of poor performance!
                 our_obd = e.bids_ob
             else:
                 our_obkv = e.asks_ob.keys()
@@ -657,19 +657,20 @@ volumes = {}
 lock = Lock()
 exchange = 'poloniex'
 #exchange = 'binance'
-#fmsse = 1533081600000 # Aug. 1st, 2018
+#fmsse = 1541385118000 # Nov. 5th, 2018 (binance)
+fmsse = 1533081600000 # Aug. 1st, 2018 (poloni)
 #fmsse = 1543564947000 # Nov. 30th, 2018
-fmsse = 1542064947000 # Nov. 12th, 2018
+#fmsse = 1542064947000 # Nov. 12th, 2018
 
 def train_coin_process (pair):
 #    if pair[0] != 'BTCUSDT':
 #    if pair[0] != 'GRSBTC':
 #        return
     if exchange == 'poloniex':
-        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/15, pair[2]).train_all (fmsse)
+        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/5, pair[2]).train_all (fmsse)
     elif exchange == 'binance':
 #        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/20, pair[2]).train_all ()
-        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 1000000, 8, pair[1]/10, pair[2]).train_all () # 10mBTC
+        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/5, pair[2]).train_all (fmsse) # 100mBTC # NEXT TIME - pair[1]/2
     else:
         assert False, 'No such exchange ' + exchange
 
@@ -698,10 +699,13 @@ def filter_volumes (volumes):
 def train_all_coins_processly ():
     noof_threads = 4
     label = str(int(time.time()))
+    logging.error ('exchange == ' + exchange)
     if exchange == 'poloniex':
 #        vfn = 'volumes.json'
 #        vfn = 'volumes.poloniex.720s.1540944000.json'
-        vfn = 'volumes.poloniex.360s.1543764754713.json'
+#        vfn = 'volumes.poloniex.360s.1543764754713.json'
+#        vfn = 'volumes.poloniex.360s.1548233141768.json'
+        vfn = 'volumes.poloniex.360s.1550389548000.json'
         MAKER_COST = POLO_MAKER_COST
         TAKER_COST = POLO_TAKER_COST
     elif exchange == 'binance':
@@ -709,10 +713,15 @@ def train_all_coins_processly ():
         MAKER_COST = BINANCE_MAKER_COST
         TAKER_COST = BINANCE_TAKER_COST
     with open (vfn, 'r') as fh:
-        volumes = filter_volumes (json.load (fh))
+        if exchange == 'poloniex':
+            volumes = filter_volumes (json.load (fh))
+        else:
+            volumes = json.load (fh)
 #    volumes = {'OAXBTC': volumes['OAXBTC']} # binance
 #    volumes = {'BTC_BCN': volumes['BTC_PPC']} # polo
 #    volumes = {'BTC_ETH': volumes['BTC_ETH']}
+    volumes = {'BTC_FOAM': volumes['BTC_FOAM']}
+#    volumes = {'BTC_EOS': volumes['BTC_EOS'], 'BTC_LOOM': volumes['BTC_LOOM']}
     logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
     p = Pool (noof_threads)
 #    logging.error('orig volumes: ' + str(volumes))
