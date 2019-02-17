@@ -9,9 +9,11 @@ import fnmatch
 import glob
 from os.path import isfile, join
 
-from market_emulator.fragment import *
+from fragment import *
+#from market_emulator.fragment import *
 #from market_emulator.reverse_fragment import ReverseFragment
-from market_emulator.fragment_index import FragmentIndex
+#from market_emulator.fragment_index import FragmentIndex
+from fragment_index import FragmentIndex
 
 class BinanceFragmentGenerator:
 
@@ -192,10 +194,10 @@ if __name__ == '__main__':
         mhash = {}
         for rawdir in rawdirs:
             mdirs = glob.glob(rawdir + '/*')
-#            logging.error('mdirs: ' + str(mdirs))
+            logging.error('mdirs: ' + str(mdirs))
             for mdir in mdirs:
                 mhash[os.path.basename(mdir)] = True
         markets = mhash.keys()
-#    logging.error('markets: ' + str(markets))
+    logging.error('markets: ' + str(markets))
     for m in markets:
         BinanceFragmentGenerator (m, fragdir).extend_from_raw_dirs(rawdirs)
