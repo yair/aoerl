@@ -1,12 +1,24 @@
 #!/usr/bin/perl -w
-use strict;
+#use strict;
 use v5.10;
 
 # Splits older from newer fragment files
 
 use constant OLD    => 'old';
 use constant DRY    => 0;
-use constant CUTOFF => 1543622400000; # 20181201
+# Binance - 3 months is a snug fit
+# Poloniex - 
+#use constant CUTOFF => 1530403200000; # 20180701
+#use constant CUTOFF => 1533081600000; # 20180801
+#use constant CUTOFF => 1535760000000; # 20180901
+#use constant CUTOFF => 1538352000000; # 20181001
+#use constant CUTOFF => 1541030400000; # 20181101
+#use constant CUTOFF => 1543622400000; # 20181201
+#use constant CUTOFF => 1546300800000; # 20190101
+#use constant CUTOFF => 1548979200000; # 20190201
+#use constant CUTOFF => 1551398400000; # 20190301
+#use constant CUTOFF => 1554076800000; # 20190401
+use constant CUTOFF => 1556668800000; # 20190501
 
 mkdir OLD unless -e OLD;
 

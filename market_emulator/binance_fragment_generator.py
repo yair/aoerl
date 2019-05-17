@@ -25,7 +25,7 @@ class BinanceFragmentGenerator:
             logging.error("created non-existent " + self.fragdir)
         self.frags = []
         self.keep_frags_in_mem = False
-        self.force_overwrite_frags = False
+        self.force_overwrite_frags = True # If we're recalcing it anyway, better overwrite possibly corrupted ones (by full disk, crash or break)
 
     def reindex (self):
         return # crashes and we don't use it
@@ -38,7 +38,7 @@ class BinanceFragmentGenerator:
 
     def extend_from_raw_dirs (self, raw_dirs):
         for raw_dir in raw_dirs:
-            logging.error("extending from " + raw_dir);
+            logging.error("extending " + self.market + " from " + raw_dir);
             self.parse_raw_file(join(raw_dir, self.market))
 
     def json_loads_safe (self, s):
@@ -79,8 +79,9 @@ class BinanceFragmentGenerator:
 #                fragment.start = line['time']      # TODO: take it from the first update
             else:
                 if fragment == None:
-                    logging.error('BROKEN FILE ' + raw_file + '. Aborting.')
-                    return
+                    logging.error('BROKEN FILE ' + raw_file + '. Skipping to next OB.')
+#                    return
+                    continue
                 assert fragment != None, 'Update to non-existant OB? i=' + str(i) + ' raw_file=' + raw_file
 # {"e":"trade","E":1532949470799,"s":"ADABTC","t":16545885,"p":"0.00001951","q":"629.00000000","b":48174832,"a":48174834,"T":1532949470797,"m":true,"M":true}
 #  "e": "trade",     // Event type

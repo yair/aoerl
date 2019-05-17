@@ -27,7 +27,7 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
             logging.error("created non-existent " + self.fragdir)
         self.frags = []
         self.keep_frags_in_mem = False
-        self.force_overwrite_frags = False
+        self.force_overwrite_frags = True
 #        self.index_fn = self.fragdir + "index.json"
         # Load index from fragdir
 #        self.index = FragmentIndex (market, basefragdir)
@@ -153,7 +153,7 @@ class FragmentGenerator:    # TODO: Fragmentize further, to reduce seek time (af
 if __name__ == '__main__':
     fragdir = '../fragments/'
     rawdirs = glob.glob('../data/*')
-    markets = ["BTC_AMP","BTC_ARDR","BTC_BAT","BTC_BCH","BTC_BCHABC","BTC_BCHSV","BTC_BCN","BTC_BNT","BTC_BTS","BTC_BURST","BTC_CLAM","BTC_CVC","BTC_DASH","BTC_DCR","BTC_DGB","BTC_DOGE","BTC_EOS","BTC_ETC","BTC_ETH","BTC_EXP","BTC_FCT","BTC_FOAM","BTC_GAME","BTC_GAS","BTC_GNO","BTC_GNT","BTC_HUC","BTC_KNC","BTC_LBC","BTC_LOOM","BTC_LSK","BTC_LTC","BTC_MAID","BTC_MANA","BTC_NAV","BTC_NMC","BTC_NXT","BTC_OMG","BTC_OMNI","BTC_PASC","BTC_PPC","BTC_QTUM","BTC_REP","BTC_SBD","BTC_SC","BTC_SNT","BTC_STEEM","BTC_STORJ","BTC_STR","BTC_STRAT","BTC_SYS","BTC_VIA","BTC_VTC","BTC_XCP","BTC_XEM","BTC_XMR","BTC_XPM","BTC_XRP","BTC_ZEC","BTC_ZRX","USDT_BTC"]
+    markets = ["BTC_AMP","BTC_ARDR","BTC_BAT","BTC_BCH","BTC_BCHABC","BTC_BCHSV","BTC_BCN","BTC_BNT","BTC_BTS","BTC_BURST","BTC_CLAM","BTC_CVC","BTC_DASH","BTC_DCR","BTC_DGB","BTC_DOGE","BTC_EOS","BTC_ETC","BTC_ETH","BTC_EXP","BTC_FCT","BTC_FOAM","BTC_GAME","BTC_GAS","BTC_GNO","BTC_GNT","BTC_HUC","BTC_KNC","BTC_LBC","BTC_LOOM","BTC_LSK","BTC_LTC","BTC_MAID","BTC_MANA","BTC_NAV","BTC_NMC","BTC_NXT","BTC_OMG","BTC_OMNI","BTC_PASC","BTC_PPC","BTC_QTUM","BTC_REP","BTC_SBD","BTC_SC","BTC_SNT","BTC_STEEM","BTC_STORJ","BTC_STR","BTC_STRAT","BTC_SYS","BTC_VIA","BTC_VTC","BTC_XCP","BTC_XEM","BTC_XMR","BTC_XPM","BTC_XRP","BTC_ZEC","BTC_ZRX","USDT_BTC","BTC_ATOM","BTC_GRIN"]
 #    markets = ['BTC_ARDR', 'BTC_BCH', 'BTC_BCN', 'BTC_BCY', 'BTC_BLK', 'BTC_BTCD', 'BTC_BTM', 'BTC_BTS', 'BTC_BURST', 'BTC_CLAM', 'BTC_CVC', 'BTC_DASH', 'BTC_DCR', 'BTC_DGB', 'BTC_DOGE', 'BTC_EMC2', 'BTC_EOS', 'BTC_ETC', 'BTC_ETH', 'BTC_FCT', 'BTC_FLDC', 'BTC_FLO', 'BTC_GAME', 'BTC_GAS', 'BTC_GNT', 'BTC_GRC', 'BTC_HUC', 'BTC_LBC', 'BTC_LSK', 'BTC_LTC', 'BTC_MAID', 'BTC_NAV', 'BTC_NEOS', 'BTC_NMC', 'BTC_NXC', 'BTC_NXT', 'BTC_OMG', 'BTC_OMNI', 'BTC_PASC', 'BTC_PINK', 'BTC_POT', 'BTC_PPC', 'BTC_RADS', 'BTC_REP', 'BTC_RIC', 'BTC_SBD', 'BTC_SC', 'BTC_STEEM', 'BTC_STORJ', 'BTC_STR', 'BTC_STRAT', 'BTC_SYS', 'BTC_VIA', 'BTC_VRC', 'BTC_VTC', 'BTC_XBC', 'BTC_XCP', 'BTC_XEM', 'BTC_XMR', 'BTC_XPM', 'BTC_XRP', 'BTC_XVC', 'BTC_ZEC', 'BTC_ZRX', 'USDT_BTC']
 #    markets = ['BTC_EOS']
     for m in markets:
