@@ -37,15 +37,16 @@ class AvgVolume:
 
     def getAllVols (self, fsse, tsse, period):
         markets = [os.path.basename(x) for x in glob.glob('../binance_fragments/*')]
+#        list(filter(lambda x: x < 0, number_list))
+        markets = list(filter(lambda x: 'BTC' in x, markets))
         volumes = [self.getAvgVolume(x, fsse, tsse, period) for x in markets]
         result = dict (zip (markets, volumes))
         logging.error(str(result))
         with open ('binance_volumes.json', 'w') as fh:
             json.dump (result, fh, indent=2)
 
-
-
 if __name__ == '__main__':
 #    AvgVolume().getAvgVolume('BTC_ETH', 1528097393, 1532460171, 180)
 #    AvgVolume().getAllVols(1528097393, 1532460171, 180)
-    AvgVolume().getAllVols(1541385118, 1547301350, 360)
+#    AvgVolume().getAllVols(1543622400, 1551100727, 360) # 1.12.18 - 25.2.19, 6 minute interval
+    AvgVolume().getAllVols(1548979200, 1555077331, 360) # 1.2.19 - 12.4.19, 6 minute interval
