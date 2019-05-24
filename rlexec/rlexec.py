@@ -10,6 +10,7 @@ import os
 import threading
 from multiprocessing import Process, Lock, Pool
 import re
+import cProfile
 
 import numpy as np
 import math
@@ -66,7 +67,8 @@ PRICE_RESOLUTION = 1    # satoshi (whatabout BTC_USD?)
 
 BINANCE_MAKER_COST = 0.001
 BINANCE_TAKER_COST = 0.001
-POLO_MAKER_COST = 0.001
+#POLO_MAKER_COST = 0.001
+POLO_MAKER_COST = 0.0008
 POLO_TAKER_COST = 0.002
 MAKER_COST = POLO_MAKER_COST    # Not a bug! Will be changed during invocation!
 TAKER_COST = POLO_TAKER_COST
@@ -111,6 +113,7 @@ class RLExec:
             fnu = 0
             for fn in self.frag_fns:
 #                if int(fn[13:26]) < fmsse:
+                logging.error('Unpickling ' + fn)
                 m = tsre.search(fn)
                 if m == None:
                     logging.error('Failed to parse fragment file name ' + fn)
@@ -159,6 +162,7 @@ class RLExec:
             c = time.time()
             if PESSIMISTIC:
                 e.ref_price = e.bids_ob.keys()[-1]
+#                e.ref_price = e.bids_rob[0]
             self.train_episode (i, e, MLU_BUY)
             if PESSIMISTIC:
                 e.ref_price = e.asks_ob.keys()[0]
@@ -188,8 +192,10 @@ class RLExec:
         logging.info('New episode (' + str(e) + '). Fragment skipped ' + str(x) + ' updates. New episode length is ' + str(y) + ' updates long. (' + str(f.updates.__len__()) + ' left)')
         logging.info('Episode updates span ' + str(f.updates[y][U_TIME] - f.updates[0][U_TIME])  + ' ms')
         e.asks_ob = f.asks_ob
-        e.bids_ob = f.bids_ob
+        e.bids_ob = f.bids_ob                   # This is a sorted dict
+#        e.bids_rob = f.bids_ob.keys().__reversed__()   # This is a reverse iterator over sorted dict keys
         e.ref_price = 0.5 * (e.asks_ob.keys()[0] + e.bids_ob.keys()[-1]) # Too optimistic?
+#        e.ref_price = 0.5 * (e.asks_ob.keys()[0] + e.bids_rob[0]) # Too optimistic?
         e.updates = deque (itertools.islice (f.updates, 0, y))
 #        e.updates = self.prune (e) # Can't understand why it warps the results
         return (f, e)
@@ -197,6 +203,7 @@ class RLExec:
     def prune (self, e):
         v = 0
         for p in e.bids_ob.__reversed__():
+#        for p in e.bids_rob:
 #            if v + e.bids_ob[p] > self.average_volume + self.volume:
             if v > self.average_volume + self.volume:
                 minbid = p
@@ -286,9 +293,10 @@ class RLExec:
             i = 0
             if mode == MLU_BUY:
                 our_obkv = e.bids_ob.__reversed__()
+#                our_obkv = e.bids_rob
                 our_obd = e.bids_ob
             else:
-                our_obkv = e.asks_ob.keys()
+                our_obkv = e.asks_ob.keys() # Is keys() O(1)?
                 our_obd = e.asks_ob
             for price in our_obkv:
                 i = i + 1
@@ -302,6 +310,7 @@ class RLExec:
                             return price + PRICE_RESOLUTION
                     else:
                         if price - PRICE_RESOLUTION <= e.bids_ob.keys()[-1]:
+#                        if price - PRICE_RESOLUTION <= e.bids_rob[0]:
                             return price
                         else:
                             return price - PRICE_RESOLUTION
@@ -314,10 +323,12 @@ class RLExec:
             assert False, 'market='+self.market+' length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations. OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)+' epiode = ' + str(e) + ' Our ob dump: ' + str(our_obd)
         if mode == MLU_BUY:
             our0 = e.bids_ob.keys()[-1]
+#            our0 = e.bids_rob[0]
             their0 = e.asks_ob.keys()[0]
         else:
             our0 = e.asks_ob.keys()[0]
             their0 = e.bids_ob.keys()[-1]
+#            their0 = e.bids_rob[0]
         logging.debug('our0 = ' + str(our0) + 'bsat their0 = ' + str(their0) + 'bsat')
         if action == ALU_NEAR:
             if mode == MLU_BUY:
@@ -358,6 +369,7 @@ class RLExec:
             i = 0
             if mode == MLU_BUY:
                 our_obkv = e.bids_ob.__reversed__()     # TODO: Don't reverse here. Might be the main source of poor performance!
+#                our_obkv = e.bids_rob
                 our_obd = e.bids_ob
             else:
                 our_obkv = e.asks_ob.keys()
@@ -374,6 +386,7 @@ class RLExec:
                             return price + PRICE_RESOLUTION
                     else:
                         if price - PRICE_RESOLUTION <= e.bids_ob.keys()[-1]:
+#                        if price - PRICE_RESOLUTION <= e.bids_rob[0]:
                             return price
                         else:
                             return price - PRICE_RESOLUTION
@@ -386,10 +399,12 @@ class RLExec:
             assert False, 'market='+self.market+' length of ob: ' + str(len(our_obd.keys())) + ' after ' + str(i) + ' iterations. OB depleted: accum. v = ' + str(v) + ', volume = ' + str(volume) + ', no_deeper_than = ' + str(no_deeper_than) + ', action = ' + str(action)+' epiode = ' + str(e) + ' Our ob dump: ' + str(our_obd)
         if mode == MLU_BUY:
             our0 = e.bids_ob.keys()[-1]
+#            our0 = e.bids_rob[0]
             their0 = e.asks_ob.keys()[0]
         else:
             our0 = e.asks_ob.keys()[0]
             their0 = e.bids_ob.keys()[-1]
+#            their0 = e.bids_rob[0]
         logging.debug('our0 = ' + str(our0) + 'bsat their0 = ' + str(their0) + 'bsat')
         if action == ALU_NEAR:
             if mode == MLU_BUY:
@@ -464,6 +479,7 @@ class RLExec:
                 their_obd = e.asks_ob
             else:
                 their_obkv = e.bids_ob.__reversed__()
+#                their_obkv = e.bids_rob
                 their_obd = e.bids_ob
             for price in their_obkv:
                 i = i + 1
@@ -496,6 +512,7 @@ class RLExec:
         front = 0
         if mode == MLU_BUY:
             if oe.bids_ob.keys()[-1] == price:
+#            if oe.bids_rob.keys == price:
                 front = oe.bids_ob[price]                       # accountantial
 #                vol = vol * vol / (vol + oe.bids_ob[price])    # statistical (broken)
         else:
@@ -537,7 +554,7 @@ class RLExec:
                     vol = vol - oe.bids_ob[o]
 #                i = i + 1   # Why does this god forsaken language not support for loops?!
         """
-        for u in oe.updates:                                            # Defence
+        for u in oe.updates:                                            # Defense
             if u[U_UPT] == UPT_REMOVE:  # That can't collide
                 continue
             uvol = u[U_VOL]
@@ -600,6 +617,7 @@ class RLExec:
                             vol = vol - oe.asks_ob[o]
                 else:
                     for o in oe.bids_ob.__reversed__():
+#                    for o in oe.bids_rob:
                         if oe.bids_ob[o] >= vol:
                             transactions.append({'price': o, 'amount': vol, 'type': 'o'})
                             break
@@ -657,7 +675,7 @@ volumes = {}
 lock = Lock()
 exchange = 'poloniex'
 #exchange = 'binance'
-#fmsse = 1541385118000 # Nov. 5th, 2018 (binance)
+#fmsse = 1541385118000 # Nov. 5th, 2018 (binance) # Why do we need this?
 fmsse = 1533081600000 # Aug. 1st, 2018 (poloni)
 #fmsse = 1543564947000 # Nov. 30th, 2018
 #fmsse = 1542064947000 # Nov. 12th, 2018
@@ -667,14 +685,16 @@ def train_coin_process (pair):
 #    if pair[0] != 'GRSBTC':
 #        return
     if exchange == 'poloniex':
-        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/5, pair[2]).train_all (fmsse)
+        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse)
+# ['BTC_FOAM', 3335852.8455917886, '1550469734']
+#        cProfile.run ("RLExec ('../fragments/', '../rlexec_output/', 'BTC_FOAM', 360000, 1, 10000000, 8, 667170.569118358, '1550469734').train_all (1533081600000)")
     elif exchange == 'binance':
 #        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/20, pair[2]).train_all ()
-        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/5, pair[2]).train_all (fmsse) # 100mBTC # NEXT TIME - pair[1]/2
+        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse) # 100mBTC # NEXT TIME - pair[1]/2
     else:
         assert False, 'No such exchange ' + exchange
 
-def filter_volumes (volumes):
+def filter_volumes_poloni (volumes):
     banlist = { 'FLO':1, 'FLDC':1, 'XVC':1, 'BCY':1, 'NXC':1, 'RADS':1, 'BLK':1, 'PINK':1, 'RIC':1,   # 2.8.2018 delisting
 		'BTCD':1, 'BTM':1, 'EMC2':1, 'GRC':1, 'NEOS':1, 'POT':1, 'VRC':1, 'XBC':1,            # 25.9.2018 delisting
 		'USDC':1,                                                                             # WTF's this shit?
@@ -695,7 +715,25 @@ def filter_volumes (volumes):
 
     logging.error('Trimmed volume list from ' + str(len(volumes.keys())) + ' records to ' + str(len(r.keys())))
     return r
-    
+
+def filter_volumes_binance (volumes):
+    banlist = { 'CLOAK':1, 'MOD':1, 'SALT':1, 'SUB':1, 'WINGS':1 } # Add stable coins? (see pgp/m/b.py)
+#    tmp_banlist = { 'ADXBTC':1, 'ARNBTC':1, 'BNBBTC':1, 'CDTBTC':1, 'DOCKBTC':1, 'GASBTC':1, 'ICXBTC':1, 'LENDBTC':1, 'MDABTC':1, 'NCASHBTC':1, 'ONTBTC':1, 'PPTBTC':1, 'RLCBTC':1, 'STORJBTC':1, 'USDCBTC':1, 'WPRBTC':1, 'YOYOBTC':1, 'AEBTC':1, 'ASTBTC':1, 'BNTBTC':1, 'CNDBTC':1, 'EDOBTC':1, 'GNTBTC':1, 'INSBTC':1, 'LINKBTC':1, 'MFTBTC':1, 'NEOBTC':1, 'PAXBTC':1, 'QKCBTC':1, 'RVNBTC':1, 'STORMBTC':1, 'VETBTC':1, 'WTCBTC':1, 'ZECBTC':1, 'AGIBTC':1, 'BATBTC':1, 'BQXBTC':1, 'CVCBTC':1, 'ENGBTC':1, 'GOBTC':1, 'IOSTBTC':1, 'LOOMBTC':1, 'MITHBTC':1, 'NPXSBTC':1, 'PHXBTC':1, 'QLCBTC':1, 'SCBTC':1, 'SYSBTC':1, 'VIABTC':1, 'XEMBTC':1, 'ZENBTC':1, 'AIONBTC':1, 'BCDBTC':1, 'BRDBTC':1, 'DASHBTC':1, 'ENJBTC':1, 'GRSBTC':1, 'IOTABTC':1, 'LRCBTC':1, 'MTHBTC':1, 'NULSBTC':1, 'PIVXBTC':1, 'QSPBTC':1, 'SKYBTC':1, 'THETABTC':1, 'VIBBTC':1, 'XLMBTC':1, 'ZILBTC':1, 'AMBBTC':1, 'BCHABCBTC':1, 'BTCUSDT':1, 'DCRBTC':1, 'ETCBTC':1, 'GTOBTC':1, 'IOTXBTC':1, 'LSKBTC':1, 'MTLBTC':1, 'NXSBTC':1, 'POABTC':1, 'QTUMBTC':1, 'SNGLSBTC':1, 'TNBBTC':1, 'VIBEBTC':1, 'XMRBTC':1, 'ZRXBTC':1, 'APPCBTC':1, 'BCHSVBTC':1, 'BTGBTC':1, 'DGDBTC':1, 'EVXBTC':1, 'GVTBTC':1, 'KEYBTC':1, 'LTCBTC':1, 'NANOBTC':1, 'OAXBTC':1, 'POEBTC':1, 'RENBTC':1, 'SNMBTC':1, 'TNTBTC':1, 'WABIBTC':1, 'XRPBTC':1, 'ARDRBTC':1, 'BCPTBTC':1, 'BTSBTC':1, 'DLTBTC':1, 'FUELBTC':1, 'HCBTC':1, 'KMDBTC':1, 'LUNBTC':1, 'NASBTC':1, 'OMGBTC':1, 'POLYBTC':1, 'REPBTC':1, 'SNTBTC':1, 'TRXBTC':1, 'WANBTC':1, 'XVGBTC':1, 'ARKBTC':1, 'BLZBTC':1, 'BTTBTC':1, 'DNTBTC':1, 'FUNBTC':1, 'HOTBTC':1, 'KNCBTC':1, 'MCOBTC':1, 'NAVBTC':1, 'ONGBTC':1, 'POWRBTC':1, 'REQBTC':1, 'STEEMBTC':1, 'TUSDBTC':1, 'WAVESBTC':1, 'XZCBTC':1, 'CLOAK':1, 'MOD':1, 'SALT':1, 'SUB':1, 'WINGS':1, 'ADABTC':1, 'CMTBTC':1, 'DATABTC':1, 'DENTBTC':1, 'ELFBTC':1, 'EOSBTC':1, 'ETHBTC':1, 'GXSBTC':1, 'MANABTC':1, 'NEBLBTC':1, 'OSTBTC':1, 'RCNBTC':1, 'RDNBTC':1, 'STRATBTC':1, 'BCNBTC':1 }
+    banlist = { 'ADABTC':1, 'ASTBTC':1, 'BRDBTC':1, 'DATABTC':1, 'ENJBTC':1, 'GRSBTC':1, 'IOTXBTC':1, 'LUNBTC':1, 'NCASHBTC':1, 'PHXBTC':1, 'QTUMBTC':1, 'SNGLSBTC':1, 'TUSDBTC':1, 'XEMBTC':1, 'ZRXBTC':1, 'ADXBTC':1, 'BATBTC':1, 'BTGBTC':1, 'DCRBTC':1, 'EOSBTC':1, 'GTOBTC':1, 'KEYBTC':1, 'MANABTC':1, 'NEBLBTC':1, 'PIVXBTC':1, 'RCNBTC':1, 'SNMBTC':1, 'VETBTC':1, 'XLMBTC':1, 'AEBTC':1, 'BCDBTC':1, 'BTSBTC':1, 'DENTBTC':1, 'ETCBTC':1, 'GVTBTC':1, 'KMDBTC':1, 'MCOBTC':1, 'NEOBTC':1, 'POABTC':1, 'RDNBTC':1, 'STEEMBTC':1, 'VIABTC':1, 'XMRBTC':1, 'AGIBTC':1, 'BCHABCBTC':1, 'BTTBTC':1, 'DGDBTC':1, 'ETHBTC':1, 'GXSBTC':1, 'KNCBTC':1, 'MDABTC':1, 'NPXSBTC':1, 'POEBTC':1, 'RENBTC':1, 'STORJBTC':1, 'VIBBTC':1, 'XRPBTC':1, 'AIONBTC':1, 'BCHSVBTC':1, 'CDTBTC':1, 'DLTBTC':1, 'EVXBTC':1, 'HCBTC':1, 'LENDBTC':1, 'MFTBTC':1, 'NULSBTC':1, 'POLYBTC':1, 'REPBTC':1, 'STORMBTC':1, 'VIBEBTC':1, 'XVGBTC':1, 'AMBBTC':1, 'BCPTBTC':1, 'CELRBTC':1, 'DNTBTC':1, 'FETBTC':1, 'HOTBTC':1, 'LINKBTC':1, 'MITHBTC':1, 'OAXBTC':1, 'POWRBTC':1, 'REQBTC':1, 'STRATBTC':1, 'WABIBTC':1, 'XZCBTC':1, 'APPCBTC':1, 'BLZBTC':1, 'CMTBTC':1, 'DOCKBTC':1, 'FUNBTC':1, 'ICXBTC':1, 'LOOMBTC':1, 'MTHBTC':1, 'OMGBTC':1, 'PPTBTC':1, 'RLCBTC':1, 'SYSBTC':1, 'WANBTC':1, 'YOYOBTC':1, 'ARDRBTC':1, 'BNBBTC':1, 'CNDBTC':1, 'EDOBTC':1, 'GASBTC':1, 'INSBTC':1, 'LRCBTC':1, 'MTLBTC':1, 'ONGBTC':1, 'QKCBTC':1, 'RVNBTC':1, 'TNBBTC':1, 'WAVESBTC':1, 'ZECBTC':1, 'ARKBTC':1, 'BNTBTC':1, 'CVCBTC':1, 'ELFBTC':1, 'GNTBTC':1, 'IOSTBTC':1, 'LSKBTC':1, 'NANOBTC':1, 'ONTBTC':1, 'QLCBTC':1, 'SCBTC':1, 'TNTBTC':1, 'WPRBTC':1, 'ZENBTC':1, 'ARNBTC':1, 'BQXBTC':1, 'DASHBTC':1, 'ENGBTC':1, 'GOBTC':1, 'IOTABTC':1, 'LTCBTC':1, 'NASBTC':1, 'OSTBTC':1, 'QSPBTC':1, 'SKYBTC':1, 'TRXBTC':1, 'WTCBTC':1, 'ZILBTC':1, 'BTCUSDT':1, 'CLOAKBTC':1,  'FUELBTC':1,  'MODBTC':1,  'NAVBTC':1,  'NXSBTC':1,  'SALTBTC':1,  'SNTBTC':1,  'SUBBTC':1,  'WINGSBTC':1 }
+
+    r = {}
+
+    for market in volumes.keys():
+        for banned in banlist:
+            if banned in market:
+                logging.error('Banning market ' + market + ' (binance contains ' + banned + ')')
+                break
+        else:                               # Yes, this is an else on a for
+            r[market] = volumes[market]
+
+    logging.error('Trimmed volume list from ' + str(len(volumes.keys())) + ' records to ' + str(len(r.keys())))
+    return r
+
 def train_all_coins_processly ():
     noof_threads = 4
     label = str(int(time.time()))
@@ -705,28 +743,32 @@ def train_all_coins_processly ():
 #        vfn = 'volumes.poloniex.720s.1540944000.json'
 #        vfn = 'volumes.poloniex.360s.1543764754713.json'
 #        vfn = 'volumes.poloniex.360s.1548233141768.json'
-        vfn = 'volumes.poloniex.360s.1550389548000.json'
+#        vfn = 'volumes.poloniex.360s.1550389548000.json'
+#        vfn = 'volumes.poloniex.360s.1553432515745.json'
+        vfn = 'volumes.poloniex.360s.1556793548640.json'
         MAKER_COST = POLO_MAKER_COST
         TAKER_COST = POLO_TAKER_COST
     elif exchange == 'binance':
-        vfn = 'binance_volumes.json'
+#        vfn = 'binance_volumes.360s.1551102048.json'
+        vfn = 'volumes.binance.360s.201904122100.json'
         MAKER_COST = BINANCE_MAKER_COST
         TAKER_COST = BINANCE_TAKER_COST
     with open (vfn, 'r') as fh:
         if exchange == 'poloniex':
-            volumes = filter_volumes (json.load (fh))
+            volumes = filter_volumes_poloni (json.load (fh))
         else:
-            volumes = json.load (fh)
+            volumes = filter_volumes_binance (json.load (fh))
 #    volumes = {'OAXBTC': volumes['OAXBTC']} # binance
 #    volumes = {'BTC_BCN': volumes['BTC_PPC']} # polo
 #    volumes = {'BTC_ETH': volumes['BTC_ETH']}
-    volumes = {'BTC_FOAM': volumes['BTC_FOAM']}
+#    volumes = {'BTC_FOAM': volumes['BTC_FOAM']} # 'short' polo training
 #    volumes = {'BTC_EOS': volumes['BTC_EOS'], 'BTC_LOOM': volumes['BTC_LOOM']}
     logging.error("processing " + str(len(volumes.keys())) + " markets using " + str(noof_threads) + ' processes')
     p = Pool (noof_threads)
 #    logging.error('orig volumes: ' + str(volumes))
     v1 = [[x, volumes[x], label] for x in volumes.keys()]
 #    logging.error('listed volumes: ' + str(v1))
+    logging.error (str (v1))
     p.map(train_coin_process, v1)
 
 
