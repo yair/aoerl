@@ -6,7 +6,7 @@ use v5.10;
 
 use constant OLD    => 'old';
 use constant DRY    => 0;
-# Binance - 3 months is a snug fit
+# Binance - 3 months is a snug fit, so sometimes we have only one and a half. Cut it into smaller pieces.
 # Poloniex - 
 #use constant CUTOFF => 1530403200000; # 20180701
 #use constant CUTOFF => 1533081600000; # 20180801
