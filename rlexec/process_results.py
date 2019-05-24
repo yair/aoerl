@@ -8,13 +8,13 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
-market = 'BTC_CLAM'
+#market = 'BTC_CLAM'
 #market = 'USDT_BTC'
 #market = 'BTC_DOGE'
 #market = 'BTC_ZRX'
 #market = 'ICNBTC'
 #market = 'BTCUSDT' # 40kBTCpd
-#market = 'ETHBTC' # 6kBTCpd
+market = 'BTC_ETH' # 6kBTCpd
 #market = 'IOTABTC' # 1kBTCpd -- doesn't descend below a=4 on avgvol/10. Now sticks to 0 too much. :/
 #market = 'ENJBTC' # 100BTCpd -- Now gets to 0 avgvol/10 :/
 #market = 'GRSBTC' # 10BTCpd
