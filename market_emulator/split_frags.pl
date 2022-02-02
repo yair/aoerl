@@ -19,7 +19,10 @@ use constant DRY    => 0;
 #use constant CUTOFF => 1551398400000; # 20190301
 #use constant CUTOFF => 1554076800000; # 20190401
 #use constant CUTOFF => 1556668800000; # 20190501
-use constant CUTOFF => 1554854400000; # 20190410
+#use constant CUTOFF => 1558483200000; # 20190522
+#use constant CUTOFF => 1559347200000; # 20190601
+use constant CUTOFF => 1560643200000; # 20190616
+#use constant CUTOFF => 1561939200000; # 20190701
 
 mkdir OLD unless -e OLD;
 

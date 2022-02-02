@@ -5,8 +5,8 @@ import os
 import logging
 import json
 
-#exch = 'poloniex'
-exch = 'binance'
+exch = 'poloniex'
+#exch = 'binance'
 
 if exch == 'poloniex':
     outputs = glob.glob('../rlexec_output/*')

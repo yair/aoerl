@@ -10,6 +10,11 @@ from marketdata.poloniex import Poloniex
 import logging
 import glob
 
+#PERIOD=360  # 6 minutes, for 30 minute PGP
+PERIOD=600  # 10 minutes, for 30 minute PGP
+#PERIOD=1440  # 24 minutes, for 2 hour PGP
+#PERIOD=2400  # 40 minutes, for 2 hour PGP
+
 class AvgVolume:
     def __init__ (self):
         self.polo = Poloniex ()
@@ -52,4 +57,12 @@ if __name__ == '__main__':
 #    AvgVolume().getAllVols(1533081600, 1550388843, 360) # Aug. 1st to Feb 17th, 2019
 #    AvgVolume().getAllVols(1533081600, 1553432311, 360) # Aug. 1st to March 24th, 2019
 #    AvgVolume().getAllVols(1533081600, 1556784000, 360) # Aug. 1st to May 2nd, 2019
-    AvgVolume().getAllVols(1538359683, 1559636308, 360) # Oct. 1st to June 3nd, 2019
+#    AvgVolume().getAllVols(1543622400, 1562457600, 360) # Dec. 1st to July 7th, 2019
+#    AvgVolume().getAllVols(1548979200, 1564272000, 360) # Feb. 1st to July 28th, 2019
+#    AvgVolume().getAllVols(1551398400, 1567468800, 360) # Mar. 1st to Sept. 3rd, 2019
+#    AvgVolume().getAllVols(1551571200, 1569888000, 360) # Mar. 3rd to Oct. 1st, 2019
+#    AvgVolume().getAllVols(1554076800, 1573257600, 360) # Apr. 1st to Nov. 9th, 2019
+#    AvgVolume().getAllVols(1556668800, 1574467200, PERIOD) # May 1st to Nov. 23rd, 2019
+#    AvgVolume().getAllVols(1556668800, 1576972800, PERIOD) # May 1st to Dec. 22rd, 2019
+#    AvgVolume().getAllVols(1559347200, 1576972800, PERIOD) # June 1st to Dec. 22rd, 2019
+    AvgVolume().getAllVols(1560643200, 1577664000, PERIOD) # June 16th to Dec. 30th, 2019

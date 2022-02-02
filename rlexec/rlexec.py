@@ -28,6 +28,11 @@ logging.basicConfig(level=logging.WARNING)
 
 PESSIMISTIC = False
 
+#PERIOD = 360000 # 6 minutes, for 30 minute PGP
+PERIOD = 600000 # 10 minutes, for 30 minute PGP
+#PERIOD = 1440000 # 24 minutes, for 2 hour PGP
+#PERIOD = 2400000 # 40 minutes, for 2 hour PGP
+
 ACTIONS = 16
 #ACTIONS = 8
 
@@ -65,7 +70,7 @@ MLU_SELL = 1
 
 PRICE_RESOLUTION = 1    # satoshi (whatabout BTC_USD?)
 
-BINANCE_MAKER_COST = 0.001
+BINANCE_MAKER_COST = 0.001 Check this hasn't been changed to 0.00075 or something (on my account)
 BINANCE_TAKER_COST = 0.001
 #POLO_MAKER_COST = 0.001
 POLO_MAKER_COST = 0.0008
@@ -681,18 +686,21 @@ exchange = 'poloniex'
 #fmsse = 1543564947000 # Nov. 30th, 2018
 #fmsse = 1542064947000 # Nov. 12th, 2018
 fmsse = 1538265600000 # 30.9.2018 (poloni)
+#fmsse = 1556668800000 # 1.5.2019 (binance)
 
 def train_coin_process (pair):
 #    if pair[0] != 'BTCUSDT':
 #    if pair[0] != 'GRSBTC':
 #        return
     if exchange == 'poloniex':
-        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse)
+#        RLExec ('../fragments/', '../rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse)
+        RLExec ('../fragments/', '../rlexec_output/', pair[0], PERIOD, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse)
 # ['BTC_FOAM', 3335852.8455917886, '1550469734']
 #        cProfile.run ("RLExec ('../fragments/', '../rlexec_output/', 'BTC_FOAM', 360000, 1, 10000000, 8, 667170.569118358, '1550469734').train_all (1533081600000)")
     elif exchange == 'binance':
 #        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 180000, 8, 10000000, 8, pair[1]/20, pair[2]).train_all ()
-        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse) # 100mBTC # NEXT TIME - pair[1]/2
+#        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], 360000, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse) # 100mBTC # NEXT TIME - pair[1]/2
+        RLExec ('../binance_fragments/', '../binance_rlexec_output/', pair[0], PERIOD, 8, 10000000, 8, pair[1]/2, pair[2]).train_all (fmsse) # 100mBTC # NEXT TIME - pair[1]/2
     else:
         assert False, 'No such exchange ' + exchange
 
@@ -701,7 +709,8 @@ def filter_volumes_poloni (volumes):
 		'BTCD':1, 'BTM':1, 'EMC2':1, 'GRC':1, 'NEOS':1, 'POT':1, 'VRC':1, 'XBC':1,            # 25.9.2018 delisting
 		'USDC':1,                                                                             # WTF's this shit?
 		'GNO':1, 'AMP':1, 'EXP':1,                                                            # 4.10.2018 delisting
-                'SYS':1, 'SBD':1, 'HUC':1, 'XCP':1, 'NMC':1, 'PPC':1, 'BURST':1 }                     # 17.5.2019 delisting
+                'SYS':1, 'SBD':1, 'HUC':1, 'XCP':1, 'NMC':1, 'PPC':1, 'BURST':1,                      # 17.5.2019 delisting
+                'DGB':1, 'FCT':1, 'MAID':1, 'OMNI':1, 'XPM':1, 'VTC':1, 'VIA':1}                      # 22.12.2019 delisting
     r = {}
 #    for (market, vol) in volumes:
     for market in volumes.keys():
@@ -720,10 +729,12 @@ def filter_volumes_poloni (volumes):
     return r
 
 def filter_volumes_binance (volumes):
-    banlist = { 'CLOAK':1, 'MOD':1, 'SALT':1, 'SUB':1, 'WINGS':1 } # Add stable coins? (see pgp/m/b.py)
+    banlist = { 'CLOAK':1, 'MOD':1, 'SALT':1, 'SUB':1, 'WINGS':1, 'USDT':1, 'USDC':1, 'PAX':1, 'TUSD':1, 'USDS':1 } # Add stable coins? (see pgp/m/b.py)
+    allowlist = {'BCCBTC':1,'BCHSVBTC':1,'BTCBBTC':1,'BTCUSDT':1,'BTTBTC':1,'CHATBTC':1,'CLOAKBTC':1,'DENTBTC':1,'ETHBTC':1,'HSRBTC':1,'MODBTC':1,'NPXSBTC':1,'PAXBTC':1,'PHXBTC':1,'RPXBTC':1,'SALTBTC':1,'SUBBTC':1,'TRIGBTC':1,'TUSDBTC':1,'VENBTC':1,'WINBTC':1,'WINGSBTC':1} # 'XRPBTC':1 } #, 'TOMO':1 } # 'STEEMBTC':1, 'SNTBTC':1 } # no frags for ICN, BCN, DNT. Why?!
+#    allowlist = {} # 'XRPBTC':1 } #, 'TOMO':1 } # 'STEEMBTC':1, 'SNTBTC':1 }
 #    tmp_banlist = { 'ADXBTC':1, 'ARNBTC':1, 'BNBBTC':1, 'CDTBTC':1, 'DOCKBTC':1, 'GASBTC':1, 'ICXBTC':1, 'LENDBTC':1, 'MDABTC':1, 'NCASHBTC':1, 'ONTBTC':1, 'PPTBTC':1, 'RLCBTC':1, 'STORJBTC':1, 'USDCBTC':1, 'WPRBTC':1, 'YOYOBTC':1, 'AEBTC':1, 'ASTBTC':1, 'BNTBTC':1, 'CNDBTC':1, 'EDOBTC':1, 'GNTBTC':1, 'INSBTC':1, 'LINKBTC':1, 'MFTBTC':1, 'NEOBTC':1, 'PAXBTC':1, 'QKCBTC':1, 'RVNBTC':1, 'STORMBTC':1, 'VETBTC':1, 'WTCBTC':1, 'ZECBTC':1, 'AGIBTC':1, 'BATBTC':1, 'BQXBTC':1, 'CVCBTC':1, 'ENGBTC':1, 'GOBTC':1, 'IOSTBTC':1, 'LOOMBTC':1, 'MITHBTC':1, 'NPXSBTC':1, 'PHXBTC':1, 'QLCBTC':1, 'SCBTC':1, 'SYSBTC':1, 'VIABTC':1, 'XEMBTC':1, 'ZENBTC':1, 'AIONBTC':1, 'BCDBTC':1, 'BRDBTC':1, 'DASHBTC':1, 'ENJBTC':1, 'GRSBTC':1, 'IOTABTC':1, 'LRCBTC':1, 'MTHBTC':1, 'NULSBTC':1, 'PIVXBTC':1, 'QSPBTC':1, 'SKYBTC':1, 'THETABTC':1, 'VIBBTC':1, 'XLMBTC':1, 'ZILBTC':1, 'AMBBTC':1, 'BCHABCBTC':1, 'BTCUSDT':1, 'DCRBTC':1, 'ETCBTC':1, 'GTOBTC':1, 'IOTXBTC':1, 'LSKBTC':1, 'MTLBTC':1, 'NXSBTC':1, 'POABTC':1, 'QTUMBTC':1, 'SNGLSBTC':1, 'TNBBTC':1, 'VIBEBTC':1, 'XMRBTC':1, 'ZRXBTC':1, 'APPCBTC':1, 'BCHSVBTC':1, 'BTGBTC':1, 'DGDBTC':1, 'EVXBTC':1, 'GVTBTC':1, 'KEYBTC':1, 'LTCBTC':1, 'NANOBTC':1, 'OAXBTC':1, 'POEBTC':1, 'RENBTC':1, 'SNMBTC':1, 'TNTBTC':1, 'WABIBTC':1, 'XRPBTC':1, 'ARDRBTC':1, 'BCPTBTC':1, 'BTSBTC':1, 'DLTBTC':1, 'FUELBTC':1, 'HCBTC':1, 'KMDBTC':1, 'LUNBTC':1, 'NASBTC':1, 'OMGBTC':1, 'POLYBTC':1, 'REPBTC':1, 'SNTBTC':1, 'TRXBTC':1, 'WANBTC':1, 'XVGBTC':1, 'ARKBTC':1, 'BLZBTC':1, 'BTTBTC':1, 'DNTBTC':1, 'FUNBTC':1, 'HOTBTC':1, 'KNCBTC':1, 'MCOBTC':1, 'NAVBTC':1, 'ONGBTC':1, 'POWRBTC':1, 'REQBTC':1, 'STEEMBTC':1, 'TUSDBTC':1, 'WAVESBTC':1, 'XZCBTC':1, 'CLOAK':1, 'MOD':1, 'SALT':1, 'SUB':1, 'WINGS':1, 'ADABTC':1, 'CMTBTC':1, 'DATABTC':1, 'DENTBTC':1, 'ELFBTC':1, 'EOSBTC':1, 'ETHBTC':1, 'GXSBTC':1, 'MANABTC':1, 'NEBLBTC':1, 'OSTBTC':1, 'RCNBTC':1, 'RDNBTC':1, 'STRATBTC':1, 'BCNBTC':1 }
 #    banlist = { 'ADABTC':1, 'ASTBTC':1, 'BRDBTC':1, 'DATABTC':1, 'ENJBTC':1, 'GRSBTC':1, 'IOTXBTC':1, 'LUNBTC':1, 'NCASHBTC':1, 'PHXBTC':1, 'QTUMBTC':1, 'SNGLSBTC':1, 'TUSDBTC':1, 'XEMBTC':1, 'ZRXBTC':1, 'ADXBTC':1, 'BATBTC':1, 'BTGBTC':1, 'DCRBTC':1, 'EOSBTC':1, 'GTOBTC':1, 'KEYBTC':1, 'MANABTC':1, 'NEBLBTC':1, 'PIVXBTC':1, 'RCNBTC':1, 'SNMBTC':1, 'VETBTC':1, 'XLMBTC':1, 'AEBTC':1, 'BCDBTC':1, 'BTSBTC':1, 'DENTBTC':1, 'ETCBTC':1, 'GVTBTC':1, 'KMDBTC':1, 'MCOBTC':1, 'NEOBTC':1, 'POABTC':1, 'RDNBTC':1, 'STEEMBTC':1, 'VIABTC':1, 'XMRBTC':1, 'AGIBTC':1, 'BCHABCBTC':1, 'BTTBTC':1, 'DGDBTC':1, 'ETHBTC':1, 'GXSBTC':1, 'KNCBTC':1, 'MDABTC':1, 'NPXSBTC':1, 'POEBTC':1, 'RENBTC':1, 'STORJBTC':1, 'VIBBTC':1, 'XRPBTC':1, 'AIONBTC':1, 'BCHSVBTC':1, 'CDTBTC':1, 'DLTBTC':1, 'EVXBTC':1, 'HCBTC':1, 'LENDBTC':1, 'MFTBTC':1, 'NULSBTC':1, 'POLYBTC':1, 'REPBTC':1, 'STORMBTC':1, 'VIBEBTC':1, 'XVGBTC':1, 'AMBBTC':1, 'BCPTBTC':1, 'CELRBTC':1, 'DNTBTC':1, 'FETBTC':1, 'HOTBTC':1, 'LINKBTC':1, 'MITHBTC':1, 'OAXBTC':1, 'POWRBTC':1, 'REQBTC':1, 'STRATBTC':1, 'WABIBTC':1, 'XZCBTC':1, 'APPCBTC':1, 'BLZBTC':1, 'CMTBTC':1, 'DOCKBTC':1, 'FUNBTC':1, 'ICXBTC':1, 'LOOMBTC':1, 'MTHBTC':1, 'OMGBTC':1, 'PPTBTC':1, 'RLCBTC':1, 'SYSBTC':1, 'WANBTC':1, 'YOYOBTC':1, 'ARDRBTC':1, 'BNBBTC':1, 'CNDBTC':1, 'EDOBTC':1, 'GASBTC':1, 'INSBTC':1, 'LRCBTC':1, 'MTLBTC':1, 'ONGBTC':1, 'QKCBTC':1, 'RVNBTC':1, 'TNBBTC':1, 'WAVESBTC':1, 'ZECBTC':1, 'ARKBTC':1, 'BNTBTC':1, 'CVCBTC':1, 'ELFBTC':1, 'GNTBTC':1, 'IOSTBTC':1, 'LSKBTC':1, 'NANOBTC':1, 'ONTBTC':1, 'QLCBTC':1, 'SCBTC':1, 'TNTBTC':1, 'WPRBTC':1, 'ZENBTC':1, 'ARNBTC':1, 'BQXBTC':1, 'DASHBTC':1, 'ENGBTC':1, 'GOBTC':1, 'IOTABTC':1, 'LTCBTC':1, 'NASBTC':1, 'OSTBTC':1, 'QSPBTC':1, 'SKYBTC':1, 'TRXBTC':1, 'WTCBTC':1, 'ZILBTC':1, 'BTCUSDT':1, 'CLOAKBTC':1,  'FUELBTC':1,  'MODBTC':1,  'NAVBTC':1,  'NXSBTC':1,  'SALTBTC':1,  'SNTBTC':1,  'SUBBTC':1,  'WINGSBTC':1 }
-    banlist = { 'ADABTC':1, 'ATOMBTC':1, 'BTCUSDT':1, 'DCRBTC':1, 'ETCBTC':1, 'GVTBTC':1, 'KNCBTC':1, 'MDABTC':1, 'NPXSBTC':1, 'POEBTC':1, 'REPBTC':1, 'STORMBTC':1, 'VIBEBTC':1, 'XZCBTC':1, 'ADXBTC':1, 'BATBTC':1, 'BTGBTC':1, 'DENTBTC':1, 'ETHBTC':1, 'GXSBTC':1, 'LENDBTC':1, 'MFTBTC':1, 'NULSBTC':1, 'POLYBTC':1, 'REQBTC':1, 'STRATBTC':1, 'WABIBTC':1, 'YOYOBTC':1, 'AEBTC':1, 'BCDBTC':1, 'BTSBTC':1, 'DGDBTC':1, 'EVXBTC':1, 'HCBTC':1, 'LINKBTC':1, 'MITHBTC':1, 'NXSBTC':1, 'POWRBTC':1, 'RLCBTC':1, 'SYSBTC':1, 'WANBTC':1, 'ZECBTC':1, 'AGIBTC':1, 'BCHABCBTC':1, 'BTTBTC':1, 'DLTBTC':1, 'FETBTC':1, 'HOTBTC':1, 'LOOMBTC':1, 'MTHBTC':1, 'OAXBTC':1, 'PPTBTC':1, 'RVNBTC':1, 'THETABTC':1, 'WAVESBTC':1, 'ZENBTC':1, 'AIONBTC':1, 'BCHSVBTC':1, 'CDTBTC':1, 'DNTBTC':1, 'FUELBTC':1, 'ICXBTC':1, 'LRCBTC':1, 'MTLBTC':1, 'OMGBTC':1, 'QKCBTC':1, 'SCBTC':1, 'TNBBTC':1, 'WPRBTC':1, 'ZILBTC':1, 'AMBBTC':1, 'BCPTBTC':1, 'CELRBTC':1, 'DOCKBTC':1, 'FUNBTC':1, 'INSBTC':1, 'LSKBTC':1, 'NANOBTC':1, 'ONGBTC':1, 'QLCBTC':1, 'SKYBTC':1, 'TNTBTC':1, 'WTCBTC':1, 'ZRXBTC':1, 'APPCBTC':1, 'BLZBTC':1, 'CMTBTC':1, 'EDOBTC':1, 'GASBTC':1, 'IOSTBTC':1, 'LTCBTC':1, 'NASBTC':1, 'ONTBTC':1, 'QSPBTC':1, 'SNGLSBTC':1, 'TRXBTC':1, 'XEMBTC':1, 'ARDRBTC':1, 'BNBBTC':1, 'CNDBTC':1, 'ELFBTC':1, 'GNTBTC':1, 'IOTABTC':1, 'LUNBTC':1, 'NAVBTC':1, 'OSTBTC':1, 'QTUMBTC':1, 'SNMBTC':1, 'TUSDBTC':1, 'XLMBTC':1, 'ARKBTC':1, 'BNTBTC':1, 'CVCBTC':1, 'ENGBTC':1, 'GOBTC':1, 'IOTXBTC':1, 'MANABTC':1, 'NCASHBTC':1, 'PHXBTC':1, 'RCNBTC':1, 'SNTBTC':1, 'VETBTC':1, 'XMRBTC':1, 'ARNBTC':1, 'BQXBTC':1, 'DASHBTC':1, 'ENJBTC':1, 'GRSBTC':1, 'KEYBTC':1, 'MATICBTC':1, 'NEBLBTC':1, 'PIVXBTC':1, 'RDNBTC':1, 'STEEMBTC':1, 'VIABTC':1, 'XRPBTC':1, 'ASTBTC':1, 'BRDBTC':1, 'DATABTC':1, 'EOSBTC':1, 'GTOBTC':1, 'KMDBTC':1, 'MCOBTC':1, 'NEOBTC':1, 'POABTC':1, 'RENBTC':1, 'STORJBTC':1, 'VIBBTC':1, 'XVGBTC':1 }
+#    banlist = { 'ADABTC':1, 'ATOMBTC':1, 'BTCUSDT':1, 'DCRBTC':1, 'ETCBTC':1, 'GVTBTC':1, 'KNCBTC':1, 'MDABTC':1, 'NPXSBTC':1, 'POEBTC':1, 'REPBTC':1, 'STORMBTC':1, 'VIBEBTC':1, 'XZCBTC':1, 'ADXBTC':1, 'BATBTC':1, 'BTGBTC':1, 'DENTBTC':1, 'ETHBTC':1, 'GXSBTC':1, 'LENDBTC':1, 'MFTBTC':1, 'NULSBTC':1, 'POLYBTC':1, 'REQBTC':1, 'STRATBTC':1, 'WABIBTC':1, 'YOYOBTC':1, 'AEBTC':1, 'BCDBTC':1, 'BTSBTC':1, 'DGDBTC':1, 'EVXBTC':1, 'HCBTC':1, 'LINKBTC':1, 'MITHBTC':1, 'NXSBTC':1, 'POWRBTC':1, 'RLCBTC':1, 'SYSBTC':1, 'WANBTC':1, 'ZECBTC':1, 'AGIBTC':1, 'BCHABCBTC':1, 'BTTBTC':1, 'DLTBTC':1, 'FETBTC':1, 'HOTBTC':1, 'LOOMBTC':1, 'MTHBTC':1, 'OAXBTC':1, 'PPTBTC':1, 'RVNBTC':1, 'THETABTC':1, 'WAVESBTC':1, 'ZENBTC':1, 'AIONBTC':1, 'BCHSVBTC':1, 'CDTBTC':1, 'DNTBTC':1, 'FUELBTC':1, 'ICXBTC':1, 'LRCBTC':1, 'MTLBTC':1, 'OMGBTC':1, 'QKCBTC':1, 'SCBTC':1, 'TNBBTC':1, 'WPRBTC':1, 'ZILBTC':1, 'AMBBTC':1, 'BCPTBTC':1, 'CELRBTC':1, 'DOCKBTC':1, 'FUNBTC':1, 'INSBTC':1, 'LSKBTC':1, 'NANOBTC':1, 'ONGBTC':1, 'QLCBTC':1, 'SKYBTC':1, 'TNTBTC':1, 'WTCBTC':1, 'ZRXBTC':1, 'APPCBTC':1, 'BLZBTC':1, 'CMTBTC':1, 'EDOBTC':1, 'GASBTC':1, 'IOSTBTC':1, 'LTCBTC':1, 'NASBTC':1, 'ONTBTC':1, 'QSPBTC':1, 'SNGLSBTC':1, 'TRXBTC':1, 'XEMBTC':1, 'ARDRBTC':1, 'BNBBTC':1, 'CNDBTC':1, 'ELFBTC':1, 'GNTBTC':1, 'IOTABTC':1, 'LUNBTC':1, 'NAVBTC':1, 'OSTBTC':1, 'QTUMBTC':1, 'SNMBTC':1, 'TUSDBTC':1, 'XLMBTC':1, 'ARKBTC':1, 'BNTBTC':1, 'CVCBTC':1, 'ENGBTC':1, 'GOBTC':1, 'IOTXBTC':1, 'MANABTC':1, 'NCASHBTC':1, 'PHXBTC':1, 'RCNBTC':1, 'SNTBTC':1, 'VETBTC':1, 'XMRBTC':1, 'ARNBTC':1, 'BQXBTC':1, 'DASHBTC':1, 'ENJBTC':1, 'GRSBTC':1, 'KEYBTC':1, 'MATICBTC':1, 'NEBLBTC':1, 'PIVXBTC':1, 'RDNBTC':1, 'STEEMBTC':1, 'VIABTC':1, 'XRPBTC':1, 'ASTBTC':1, 'BRDBTC':1, 'DATABTC':1, 'EOSBTC':1, 'GTOBTC':1, 'KMDBTC':1, 'MCOBTC':1, 'NEOBTC':1, 'POABTC':1, 'RENBTC':1, 'STORJBTC':1, 'VIBBTC':1, 'XVGBTC':1 }
 
     r = {}
 
@@ -732,8 +743,14 @@ def filter_volumes_binance (volumes):
             if banned in market:
                 logging.error('Banning market ' + market + ' (binance contains ' + banned + ')')
                 break
+#            for allowed in allowlist
+#            if allowlist != {} and ba
         else:                               # Yes, this is an else on a for
-            r[market] = volumes[market]
+            if allowlist != {} and market not in allowlist.keys():
+                logging.error('Market ' + market + ' is not allowed. (allow list = ' + str(allowlist) + ')')
+                continue
+            else:
+                r[market] = volumes[market]
 
     logging.error('Trimmed volume list from ' + str(len(volumes.keys())) + ' records to ' + str(len(r.keys())))
     return r
@@ -750,13 +767,29 @@ def train_all_coins_processly ():
 #        vfn = 'volumes.poloniex.360s.1550389548000.json'
 #        vfn = 'volumes.poloniex.360s.1553432515745.json'
 #        vfn = 'volumes.poloniex.360s.1556793548640.json'
-        vfn = 'volumes.poloniex.360s.1559641512229.json'
+#        vfn = 'volumes.poloniex.360s.1559641512229.json'
+#        vfn = 'volumes.poloniex.360s.1562584942056.json'
+#        vfn = 'volumes.poloniex.360s.1564314804466.json'
+#        vfn = 'volumes.poloniex.360s.1567576281710.json'
+#        vfn = 'volumes.poloniex.360s.1569927994676.json'
+#        vfn = 'volumes.poloniex.360s.1573273964343.json'
+#        vfn = 'volumes.poloniex.1440s.1574496480041.json'
+#        vfn = 'volumes.poloniex.2400s.1575264693573.json'
+#        vfn = 'volumes.poloniex.2400s.1577027519670.json'
+#        vfn = 'volumes.poloniex.2400s.1577332170599.json'
+        vfn = 'volumes.poloniex.600s.1577677288445.json'
         MAKER_COST = POLO_MAKER_COST
         TAKER_COST = POLO_TAKER_COST
     elif exchange == 'binance':
 #        vfn = 'binance_volumes.360s.1551102048.json'
 #        vfn = 'volumes.binance.360s.201904122100.json'
-        vfn = 'volumes.binance.360s.201905242245.json'
+#        vfn = 'volumes.binance.360s.201905242245.json'
+#        vfn = 'volumes.binance.360s.20190617838.json'
+#        vfn = 'volumes.binance.360s.201907171346.json'
+#        vfn = 'volumes.binance.360s.201908261411.json'
+#        vfn = 'volumes.binance.360s.201909161236.json'
+#        vfn = 'volumes.binance.360s.201910291626.json'
+        vfn = 'volumes.binance.2400s.1575627053.json'
         MAKER_COST = BINANCE_MAKER_COST
         TAKER_COST = BINANCE_TAKER_COST
     with open (vfn, 'r') as fh:
@@ -777,6 +810,10 @@ def train_all_coins_processly ():
     logging.error (str (v1))
     p.map(train_coin_process, v1)
 
+def nijez_done():
+    with open ('/home/yair/w/nijez/volatile/rlexec', 'w') as fh:
+        fh.write('RLexec training done')
+#    echo 'done PGP training' > /home/yair/w/nijez/volatile/pgp
 
 if __name__ == '__main__':
 #    RLExec ('../fragments/', 'BTC_ETH', 180000, 8, 10000000, 8, 160000000).train_all ()    # avg_vol
@@ -792,6 +829,7 @@ if __name__ == '__main__':
 #    train_all_coins ()
 #     train_all_coins_threadedly ()
     train_all_coins_processly()
+    nijez_done()
     
 
 """

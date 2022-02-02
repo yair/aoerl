@@ -2,6 +2,8 @@
 #use strict;
 use v5.10;
 
+die "I don't think this is the right script. Try 'By Day'.\n";
+
 # find out date boundaries.
 my $end = 0, $start = 2147483647; # year 2038 bug
 foreach (<*\/*>) {

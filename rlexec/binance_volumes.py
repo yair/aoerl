@@ -49,4 +49,10 @@ if __name__ == '__main__':
 #    AvgVolume().getAvgVolume('BTC_ETH', 1528097393, 1532460171, 180)
 #    AvgVolume().getAllVols(1528097393, 1532460171, 180)
 #    AvgVolume().getAllVols(1543622400, 1551100727, 360) # 1.12.18 - 25.2.19, 6 minute interval
-    AvgVolume().getAllVols(1552521600, 1558656000, 360) # 14.3.19 - 24.5.19, 6 minute interval
+#    AvgVolume().getAllVols(1552521600, 1558656000, 360) # 14.3.19 - 24.5.19, 6 minute interval
+#    AvgVolume().getAllVols(1556668800, 1560643200, 360) # 1.5.19 - 16.6.19, 6 minute interval
+#    AvgVolume().getAllVols(1558656000, 1563148800, 360) # 24.5.19 - 15.7.19, 6 minute interval
+#    AvgVolume().getAllVols(1561248000, 1566691200, 360) # 23.6.19 - 25.8.19, 6 minute interval
+#    AvgVolume().getAllVols(1562457600, 1568592000, 360) # 7.7.19 - 16.9.19, 6 minute interval
+#    AvgVolume().getAllVols(1566086400, 1572307200, 360) # 18.8.19 - 29.10.19, 6 minute interval
+    AvgVolume().getAllVols(1569888000, 1575504000, 2400) # 1.10.19 - 5.12.19, 40 minute interval

@@ -29,6 +29,7 @@ REZ = 100000000
 class Fragment:
     def __init__ (self, pickle_fn = None):
         if (pickle_fn != None):
+            logging.error('Loading pickle ' + pickle_fn)
             self.load_from_pickle (pickle_fn)
         else:
             self.reset()

@@ -79,7 +79,7 @@ class BinanceFragmentGenerator:
 #                fragment.start = line['time']      # TODO: take it from the first update
             else:
                 if fragment == None:
-                    logging.error('BROKEN FILE ' + raw_file + '. Skipping to next OB.')
+                    logging.error('BROKEN FILE (have not seen a line with lastUpdateId yet. Might be our bad) ' + raw_file + '. Skipping to next OB.')
 #                    return
                     continue
                 assert fragment != None, 'Update to non-existant OB? i=' + str(i) + ' raw_file=' + raw_file
@@ -167,7 +167,7 @@ class BinanceFragmentGenerator:
         return ret
 
     def store_fragment (self, fragment):
-        if len(fragment.updates) == 0:
+        if fragment == None  or len(fragment.updates) == 0:
             logging.error('fragment has no updates.')
             return
         fragment.start = fragment.updates[0][U_TIME]

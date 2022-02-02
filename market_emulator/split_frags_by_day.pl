@@ -2,8 +2,8 @@
 use strict;
 use v5.10;
 
-my $exch = 'binance';
-#my $exch = 'poloniex';
+#my $exch = 'binance';
+my $exch = 'poloniex';
 
 # Splits fragment file repo into smaller, daily repos.
 
@@ -28,6 +28,8 @@ foreach my $mart (<*BTC*>) {
     }
 }
 $fday_start = MSID * int($fday_start / MSID);
+#$lday_end   = 1559347200000; # MSID * (1 + int($lday_end / MSID));              June first. *** CHANGE ME ***
+#$lday_end   =  1560643200000; # MSID * (1 + int($lday_end / MSID));              June 16th. *** CHANGE ME ***
 $lday_end   = MSID * (1 + int($lday_end / MSID));
 #say("fday_start=$fday_start lday_end=$lday_end");
 say('Splitting into ' . ($lday_end - $fday_start) / MSID . ' days from ' . gmtime($fday_start/1000) . ' to ' . gmtime($lday_end/1000));
